@@ -1,4 +1,4 @@
-import { put } from '@vercel/blob/client';
+import { upload } from '@vercel/blob/client';
 
 document.addEventListener('DOMContentLoaded', () => {
     const form = document.getElementById('odx-import-form');
@@ -7,41 +7,29 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
     }
 
-    const fileInput =
-        document.getElementById('odx_file');
+    const fileInput = document.getElementById('odx_file');
+    const button = document.getElementById('odx-import-button');
+    const status = document.getElementById('odx-status');
+    const progress = document.getElementById('odx-progress');
 
-    const button =
-        document.getElementById('odx-import-button');
-
-    const status =
-        document.getElementById('odx-status');
-
-    const progress =
-        document.getElementById('odx-progress');
-
-    const csrf =
-        document.querySelector(
-            'meta[name="csrf-token"]'
-        )?.getAttribute('content');
+    const tokenUrl = form.dataset.tokenUrl;
+    const importUrl = form.dataset.importUrl;
 
     if (
         !fileInput ||
         !button ||
         !status ||
         !progress ||
-        !csrf
+        !tokenUrl ||
+        !importUrl
     ) {
+        console.error('ODX import configuration is incomplete.');
         return;
     }
 
-    function showStatus(
-        message,
-        type = 'info'
-    ) {
+    function showStatus(message, type = 'info') {
         status.textContent = message;
-
-        status.className =
-            'mb-6 px-5 py-4 rounded-xl border';
+        status.className = 'mb-6 px-5 py-4 rounded-xl border';
 
         if (type === 'success') {
             status.classList.add(
@@ -69,6 +57,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function setProgress(percent) {
         progress.textContent =
             `Upload ODX: ${Math.round(percent)}%`;
+
         progress.classList.remove('hidden');
     }
 
@@ -85,11 +74,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        if (
-            !file.name
-                .toLowerCase()
-                .endsWith('.odx')
-        ) {
+        if (!file.name.toLowerCase().endsWith('.odx')) {
             showStatus(
                 'File harus berekstensi .odx.',
                 'error'
@@ -97,10 +82,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        if (
-            file.size >
-            50 * 1024 * 1024
-        ) {
+        if (file.size > 50 * 1024 * 1024) {
             showStatus(
                 'Ukuran ODX maksimal 50 MB.',
                 'error'
@@ -109,121 +91,68 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         button.disabled = true;
-        button.textContent =
-            'Menyiapkan upload...';
-
+        button.textContent = 'Uploading...';
         progress.classList.add('hidden');
 
         try {
             /*
-             * 1. Minta client token.
+             * Browser -> Vercel Blob.
              *
-             * Yang dikirim cuma nama file.
-             * ODX BESAR belum masuk Laravel.
+             * File BESAR tidak dikirim sebagai body
+             * ke Laravel Function.
              */
-            const tokenResponse =
-                await fetch(
-                    '{{ route("odx-import.client-token") }}',
-                    {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type':
-                                'application/json',
-                            'X-CSRF-TOKEN': csrf,
-                            'Accept':
-                                'application/json',
-                        },
-                        body: JSON.stringify({
-                            filename: file.name,
-                        }),
-                    }
-                );
+            const blob = await upload(
+                file.name,
+                file,
+                {
+                    access: 'private',
+                    handleUploadUrl: tokenUrl,
+                    multipart: true,
 
-            const tokenData =
-                await tokenResponse.json();
-
-            if (
-                !tokenResponse.ok ||
-                !tokenData.token ||
-                !tokenData.pathname
-            ) {
-                throw new Error(
-                    tokenData.message ||
-                    'Gagal mendapatkan upload token.'
-                );
-            }
-
-            /*
-             * 2. Upload ODX langsung dari browser
-             *    ke Vercel Blob.
-             *
-             * File besar TIDAK melewati Laravel.
-             */
-            button.textContent =
-                'Uploading ODX...';
-
-            const blob =
-                await put(
-                    tokenData.pathname,
-                    file,
-                    {
-                        access: 'private',
-                        token: tokenData.token,
-                        multipart: true,
-                        contentType:
-                            'application/octet-stream',
-
-                        onUploadProgress: ({
-                            percentage,
-                        }) => {
-                            setProgress(
-                                percentage
-                            );
-                        },
-                    }
-                );
-
-            /*
-             * 3. Laravel hanya menerima pathname kecil.
-             *
-             * Laravel kemudian download temporary,
-             * parse ODX, masuk MySQL, lalu menghapus
-             * ODX temporary dari Blob.
-             */
-            button.textContent =
-                'Memproses ODX...';
+                    onUploadProgress: ({ percentage }) => {
+                        setProgress(percentage);
+                    },
+                }
+            );
 
             showStatus(
-                'Upload selesai. Sedang memproses data ODX...',
+                'Upload ODX selesai. Sedang memproses data...',
                 'info'
             );
 
-            const importResponse =
-                await fetch(
-                    '{{ route("odx-import.store") }}',
-                    {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type':
-                                'application/json',
-                            'X-CSRF-TOKEN': csrf,
-                            'Accept':
-                                'application/json',
-                        },
-                        body: JSON.stringify({
-                            pathname:
-                                blob.pathname,
-                        }),
-                    }
-                );
+            button.textContent = 'Memproses...';
+
+            /*
+             * Laravel sekarang hanya menerima pathname kecil.
+             */
+            const csrfToken =
+                document.querySelector(
+                    'meta[name="csrf-token"]'
+                )?.getAttribute('content') || '';
+
+            const importResponse = await fetch(
+                importUrl,
+                {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type':
+                            'application/json',
+                        'X-CSRF-TOKEN': csrfToken,
+                        Accept:
+                            'application/json',
+                    },
+                    body: JSON.stringify({
+                        pathname: blob.pathname,
+                    }),
+                }
+            );
 
             const importData =
-                await importResponse.json();
+                await importResponse
+                    .json()
+                    .catch(() => ({}));
 
-            if (
-                !importResponse.ok ||
-                !importData.success
-            ) {
+            if (!importResponse.ok) {
                 throw new Error(
                     importData.message ||
                     'Import ODX gagal.'
@@ -231,15 +160,20 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             showStatus(
-                `${importData.message} Data baru: ${importData.imported}, diperbarui: ${importData.updated}. Total: ${importData.total}.`,
+                importData.message ||
+                'Import ODX berhasil.',
                 'success'
             );
 
             fileInput.value = '';
             progress.classList.add('hidden');
 
-            button.textContent =
-                'Import ODX';
+            /*
+             * Reload supaya dashboard membaca data terbaru.
+             */
+            setTimeout(() => {
+                window.location.reload();
+            }, 1200);
 
         } catch (error) {
             console.error(
@@ -254,9 +188,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 'error'
             );
 
-            button.textContent =
-                'Import ODX';
-        } finally {
+            button.textContent = 'Import ODX';
             button.disabled = false;
         }
     });
