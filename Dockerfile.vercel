@@ -1,6 +1,6 @@
-# =========================
+# =========================================================
 # 1. Build frontend assets
-# =========================
+# =========================================================
 FROM node:22-alpine AS assets
 
 WORKDIR /app
@@ -12,9 +12,9 @@ COPY . .
 RUN npm run build
 
 
-# =========================
+# =========================================================
 # 2. Install PHP dependencies
-# =========================
+# =========================================================
 FROM composer:2 AS vendor
 
 WORKDIR /app
@@ -30,13 +30,17 @@ RUN composer install \
     --no-scripts
 
 
-# =========================
+# =========================================================
 # 3. Runtime Laravel
-# =========================
+# =========================================================
 FROM php:8.3-cli-bookworm
 
 WORKDIR /var/www/html
 
+
+# =========================================================
+# 3A. System dependencies + PHP extensions
+# =========================================================
 RUN apt-get update && apt-get install -y \
     libzip-dev \
     libicu-dev \
@@ -44,9 +48,12 @@ RUN apt-get update && apt-get install -y \
     libpng-dev \
     libjpeg62-turbo-dev \
     libfreetype6-dev \
+    libssl-dev \
+    libcrypt-dev \
     unzip \
     git \
     curl \
+    ca-certificates \
     && docker-php-ext-configure gd \
         --with-freetype \
         --with-jpeg \
@@ -59,16 +66,45 @@ RUN apt-get update && apt-get install -y \
         gd \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy Laravel application
+
+# =========================================================
+# 3B. Verify PHP runtime capabilities
+#     Bcrypt MUST work before deployment continues
+# =========================================================
+RUN php -r '\
+    echo "PHP VERSION: ", PHP_VERSION, PHP_EOL; \
+    echo "PASSWORD_BCRYPT: ", PASSWORD_BCRYPT, PHP_EOL; \
+    $hash = password_hash("deployment-test", PASSWORD_BCRYPT, ["cost" => 12]); \
+    if ($hash === false) { \
+        fwrite(STDERR, "ERROR: Bcrypt hashing is NOT supported in this PHP runtime.", PHP_EOL); \
+        exit(1); \
+    } \
+    echo "BCRYPT TEST: OK", PHP_EOL; \
+    echo "HASH: ", $hash, PHP_EOL; \
+'
+
+
+# =========================================================
+# 4. Copy Laravel application
+# =========================================================
 COPY . .
 
-# Copy Composer dependencies
+
+# =========================================================
+# 5. Copy Composer dependencies
+# =========================================================
 COPY --from=vendor /app/vendor ./vendor
 
-# Copy compiled frontend assets
+
+# =========================================================
+# 6. Copy compiled frontend assets
+# =========================================================
 COPY --from=assets /app/public/build ./public/build
 
-# Laravel writable directories
+
+# =========================================================
+# 7. Laravel writable directories
+# =========================================================
 RUN mkdir -p \
     storage/framework/cache \
     storage/framework/sessions \
@@ -76,10 +112,23 @@ RUN mkdir -p \
     storage/logs \
     bootstrap/cache
 
+
 RUN chmod -R 775 storage bootstrap/cache
 
-# Generate optimized autoload / Laravel package discovery
+
+# =========================================================
+# 8. Clear old Laravel caches
+# =========================================================
+RUN php artisan optimize:clear
+
+
+# =========================================================
+# 9. Generate optimized package discovery
+# =========================================================
 RUN php artisan package:discover --ansi
 
-# Vercel provides PORT
+
+# =========================================================
+# 10. Vercel runtime
+# =========================================================
 CMD ["sh", "-c", "php artisan serve --host=0.0.0.0 --port=${PORT:-80}"]
