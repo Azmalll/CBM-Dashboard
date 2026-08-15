@@ -3,20 +3,22 @@
 namespace App\Http\Controllers;
 
 use App\Models\EquipmentInspection;
+use App\Services\VercelBlobService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
+use RuntimeException;
 
 class EquipmentInspectionReportController extends Controller
 {
     /**
-     * Upload / replace the analysis report for one equipment measurement.
+     * Upload / replace Analysis Report.
      *
-     * One EquipmentInspection = one equipment measurement session
-     * and therefore one analysis report.
+     * File disimpan di Vercel Blob,
+     * bukan di storage lokal Laravel.
      */
     public function upload(
         Request $request,
-        EquipmentInspection $equipmentInspection
+        EquipmentInspection $equipmentInspection,
+        VercelBlobService $blob
     ) {
         $validated = $request->validate([
             'analysis_report' => [
@@ -26,10 +28,14 @@ class EquipmentInspectionReportController extends Controller
                 'max:20480',
             ],
         ], [
-            'analysis_report.required' => 'Silakan pilih file Analysis Report.',
-            'analysis_report.file' => 'File yang dipilih tidak valid.',
-            'analysis_report.mimes' => 'Analysis Report harus berupa file PDF.',
-            'analysis_report.max' => 'Ukuran Analysis Report maksimal 20 MB.',
+            'analysis_report.required' =>
+                'Silakan pilih file Analysis Report.',
+            'analysis_report.file' =>
+                'File yang dipilih tidak valid.',
+            'analysis_report.mimes' =>
+                'Analysis Report harus berupa file PDF.',
+            'analysis_report.max' =>
+                'Ukuran Analysis Report maksimal 20 MB.',
         ]);
 
         $oldReport = $equipmentInspection->report_file;
@@ -43,58 +49,122 @@ class EquipmentInspectionReportController extends Controller
             now()->format('YmdHis')
         );
 
-        $path = $file->storeAs(
-            'reports',
-            $filename,
-            'public'
-        );
+        $pathname = 'reports/' . $filename;
 
-        $equipmentInspection->update([
-            'report_file' => $path,
-        ]);
+        try {
+            $blob = $blob->upload(
+                $pathname,
+                $file->getRealPath(),
+                'application/pdf'
+            );
 
-        if (
-            $oldReport &&
-            Storage::disk('public')->exists($oldReport) &&
-            $oldReport !== $path
-        ) {
-            Storage::disk('public')->delete($oldReport);
+            $equipmentInspection->update([
+                'report_file' => $blob['pathname'],
+            ]);
+
+            /*
+             * Hapus report lama HANYA kalau report lama
+             * sudah merupakan pathname Vercel Blob.
+             *
+             * Report lokal lama tidak disentuh.
+             */
+            if (
+                $oldReport &&
+                str_starts_with($oldReport, 'reports/')
+            ) {
+                try {
+                    $blob->delete($oldReport);
+                } catch (RuntimeException) {
+                    // Jangan menggagalkan upload baru
+                    // hanya karena penghapusan file lama gagal.
+                }
+            }
+
+            return response()->json([
+                'success' => true,
+                'message' =>
+                    'Analysis Report berhasil di-upload.',
+                'reportFile' => $blob['pathname'],
+                'reportUrl' => route(
+                    'equipment-inspection.analysis-report.show',
+                    $equipmentInspection
+                ),
+            ]);
+        } catch (RuntimeException $e) {
+            return response()->json([
+                'success' => false,
+                'message' => $e->getMessage(),
+            ], 500);
         }
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Analysis Report berhasil di-upload.',
-            'reportFile' => $path,
-            'reportUrl' => route(
-                'equipment-inspection.analysis-report.show',
-                $equipmentInspection
-            ),
-        ]);
     }
 
     /**
-     * Display the analysis report inline in the browser.
+     * Display private Analysis Report inline.
      */
     public function show(
-        EquipmentInspection $equipmentInspection
+        EquipmentInspection $equipmentInspection,
+        VercelBlobService $blob
     ) {
         $path = $equipmentInspection->report_file;
 
         abort_unless(
-            $path &&
-            Storage::disk('public')->exists($path),
+            $path,
             404,
             'Analysis Report belum tersedia.'
         );
 
-        return response()->file(
-            Storage::disk('public')->path($path),
-            [
-                'Content-Type' => 'application/pdf',
-                'Content-Disposition' => 'inline; filename="' .
-                    basename($path) .
-                    '"',
-            ]
+        /*
+         * Untuk sementara kita hanya melayani report
+         * yang sudah menggunakan Vercel Blob.
+         */
+        abort_unless(
+            str_starts_with($path, 'reports/'),
+            404,
+            'Analysis Report belum tersedia di Blob storage.'
         );
+
+        try {
+            $response = $blob->get($path);
+
+            $status = $response->getStatusCode();
+
+            abort_unless(
+                $status === 200,
+                404,
+                'Analysis Report tidak ditemukan di Blob storage.'
+            );
+
+            $contentType =
+                $response->getHeaderLine('Content-Type')
+                ?: 'application/pdf';
+
+            $contentLength =
+                $response->getHeaderLine('Content-Length');
+
+            return response()->stream(
+                function () use ($response) {
+                    $body = $response->getBody();
+
+                    while (!$body->eof()) {
+                        echo $body->read(8192);
+                    }
+                },
+                200,
+                array_filter([
+                    'Content-Type' => $contentType,
+                    'Content-Disposition' =>
+                        'inline; filename="' .
+                        basename($path) .
+                        '"',
+                    'Content-Length' => $contentLength ?: null,
+                    'Cache-Control' => 'private, no-store',
+                ])
+            );
+        } catch (RuntimeException $e) {
+            abort(
+                500,
+                'Gagal mengambil Analysis Report dari Blob storage.'
+            );
+        }
     }
 }
