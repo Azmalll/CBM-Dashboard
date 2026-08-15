@@ -37,7 +37,7 @@ FROM php:8.3-cli-bookworm
 
 WORKDIR /var/www/html
 
-RUN RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get install -y \
     libzip-dev \
     libicu-dev \
     libonig-dev \
@@ -59,7 +59,7 @@ RUN RUN apt-get update && apt-get install -y \
         intl \
         zip \
         gd \
-        curl\
+        curl \
     && rm -rf /var/lib/apt/lists/*
 
 
