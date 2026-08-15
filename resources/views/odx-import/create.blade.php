@@ -6,7 +6,6 @@
 
 <div class="max-w-4xl mx-auto py-10 px-6">
 
-    {{-- HEADER --}}
     <div class="mb-8">
 
         <h1 class="text-3xl font-bold text-blue-900">
@@ -19,60 +18,20 @@
 
     </div>
 
+    <div
+        id="odx-status"
+        class="hidden mb-6 px-5 py-4 rounded-xl"
+    ></div>
 
-    {{-- SUCCESS MESSAGE --}}
-    @if(session('success'))
-
-        <div class="mb-6 bg-green-100 border border-green-300
-                    text-green-800 px-5 py-4 rounded-xl">
-
-            {{ session('success') }}
-
-        </div>
-
-    @endif
-
-
-    {{-- ERROR MESSAGE --}}
-    @if($errors->any())
-
-        <div class="mb-6 bg-red-100 border border-red-300
-                    text-red-800 px-5 py-4 rounded-xl">
-
-            <div class="font-semibold mb-2">
-                Import gagal:
-            </div>
-
-            <ul class="list-disc list-inside">
-
-                @foreach($errors->all() as $error)
-
-                    <li>
-                        {{ $error }}
-                    </li>
-
-                @endforeach
-
-            </ul>
-
-        </div>
-
-    @endif
-
-
-    {{-- IMPORT CARD --}}
     <div class="bg-white rounded-2xl shadow-sm p-8">
 
         <form
+            id="odx-import-form"
             method="POST"
-            action="{{ route('odx-import.store') }}"
-            enctype="multipart/form-data"
         >
 
             @csrf
 
-
-            {{-- FILE --}}
             <div class="mb-6">
 
                 <label
@@ -82,7 +41,6 @@
                 >
                     ODX File
                 </label>
-
 
                 <input
                     type="file"
@@ -95,22 +53,29 @@
                            bg-white text-gray-700"
                 >
 
-
                 <p class="text-xs text-gray-500 mt-2">
                     Select the ODX file exported from Omnitrend.
+                    Maximum 50 MB.
                 </p>
 
             </div>
 
+            <div
+                id="odx-progress"
+                class="hidden mb-6
+                       bg-blue-50 border border-blue-200
+                       text-blue-800 px-5 py-4
+                       rounded-xl font-semibold"
+            ></div>
 
-            {{-- INFO --}}
-            <div class="bg-blue-50 border border-blue-200
-                        rounded-xl p-5 mb-6">
+            <div
+                class="bg-blue-50 border border-blue-200
+                       rounded-xl p-5 mb-6"
+            >
 
                 <h2 class="font-semibold text-blue-800 mb-2">
                     Import Rules
                 </h2>
-
 
                 <ul class="text-sm text-blue-700 space-y-1">
 
@@ -139,23 +104,28 @@
                         deleted unnecessarily.
                     </li>
 
+                    <li>
+                        • ODX files are stored temporarily in
+                        Vercel Blob during processing.
+                    </li>
+
                 </ul>
 
             </div>
 
-
-            {{-- BUTTON --}}
             <div class="flex items-center gap-3">
 
                 <button
+                    id="odx-import-button"
                     type="submit"
                     class="bg-blue-900 hover:bg-blue-950
                            text-white font-semibold
-                           px-6 py-3 rounded-xl transition"
+                           px-6 py-3 rounded-xl transition
+                           disabled:opacity-50
+                           disabled:cursor-not-allowed"
                 >
                     Import ODX
                 </button>
-
 
                 <a
                     href="{{ route('home') }}"

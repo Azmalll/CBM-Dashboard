@@ -172,4 +172,82 @@ class VercelBlobService
             ltrim($pathname, '/')
         );
     }
+/**
+ * Generate short-lived Vercel Blob client token.
+ *
+ * Token ini aman dikirim ke browser karena hanya mempunyai
+ * permission terbatas pada pathname dan ukuran file tertentu.
+ */
+public function generateClientToken(
+    string $pathname,
+    int $maximumSizeInBytes = 52428800
+): string {
+    $readWriteToken = trim(
+        (string) env('BLOB_READ_WRITE_TOKEN')
+    );
+
+    if ($readWriteToken === '') {
+        throw new RuntimeException(
+            'BLOB_READ_WRITE_TOKEN belum tersedia.'
+        );
+    }
+
+    /*
+     * BLOB_READ_WRITE_TOKEN biasanya:
+     *
+     * vercel_blob_rw_<storeId>_...
+     *
+     * Vercel menggunakan bagian ke-4 sebagai store ID.
+     */
+    $parts = explode('_', $readWriteToken);
+
+    $storeId = $parts[3] ?? '';
+
+    if ($storeId === '') {
+        throw new RuntimeException(
+            'Store ID tidak dapat dibaca dari BLOB_READ_WRITE_TOKEN.'
+        );
+    }
+
+    /*
+     * Payload yang akan ditandatangani harus sama dengan
+     * format generateClientTokenFromReadWriteToken milik
+     * @vercel/blob.
+     */
+    $payloadArray = [
+        'pathname' => $pathname,
+        'access' => 'private',
+        'maximumSizeInBytes' => $maximumSizeInBytes,
+        'allowedContentTypes' => [
+            'application/octet-stream',
+            'application/xml',
+            'text/xml',
+        ],
+        'addRandomSuffix' => false,
+        'allowOverwrite' => false,
+        'validUntil' => now()
+            ->addMinutes(10)
+            ->valueOf(),
+    ];
+
+    $payload = base64_encode(
+        json_encode(
+            $payloadArray,
+            JSON_UNESCAPED_SLASHES
+        )
+    );
+
+    $signature = hash_hmac(
+        'sha256',
+        $payload,
+        $readWriteToken
+    );
+
+    return 'vercel_blob_client_' .
+        $storeId .
+        '_' .
+        base64_encode(
+            $signature . '.' . $payload
+        );
+}
 }
