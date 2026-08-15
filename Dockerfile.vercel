@@ -92,18 +92,12 @@ RUN chmod -R 775 storage bootstrap/cache
 
 
 # =========================
-# 8. Clear Laravel cache
-# =========================
-RUN php artisan optimize:clear
-
-
-# =========================
-# 9. Laravel package discovery
+# 8. Laravel package discovery
 # =========================
 RUN php artisan package:discover --ansi
 
 
 # =========================
-# 10. Start Laravel
+# 9. Start Laravel
 # =========================
 CMD ["sh", "-c", "php artisan serve --host=0.0.0.0 --port=${PORT:-80}"]
