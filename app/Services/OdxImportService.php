@@ -30,13 +30,13 @@ class OdxImportService
      * Inspector TIDAK ditentukan oleh ODX.
      * Inspector akan di-assign secara manual pada Measurement Result.
      */
-   public function import(string $filePath): array
-{
-    if (!is_file($filePath)) {
-        throw new \RuntimeException(
-            'File ODX tidak ditemukan atau tidak dapat dibaca.'
-        );
-    }
+    public function import(string $filePath): array
+    {
+        if (!is_file($filePath)) {
+            throw new \RuntimeException(
+                'File ODX tidak ditemukan atau tidak dapat dibaca.'
+            );
+        }
 
         /*
         |--------------------------------------------------------------------------
@@ -47,20 +47,37 @@ class OdxImportService
         $rows = $this->parser->parseOverallVelocity($filePath);
 
         if (empty($rows)) {
-    return [
-        'message' =>
-            'Tidak ada data Overall Velocity yang ditemukan dari file ODX.',
+            return [
+                'message' =>
+                    'Tidak ada data Overall Velocity yang ditemukan dari file ODX.',
 
-        'imported' => 0,
+                'imported' => 0,
 
-        'updated' => 0,
+                'updated' => 0,
 
-        'total' => 0,
-    ];
-}
+                'total' => 0,
+            ];
+        }
 
         $imported = 0;
         $updated = 0;
+
+        /*
+        |--------------------------------------------------------------------------
+        | EQUIPMENT INSPECTION YANG PERLU DI-REFRESH
+        |--------------------------------------------------------------------------
+        |
+        | Sebelumnya refreshEquipmentInspectionSummary()
+        | dipanggil pada setiap measurement.
+        |
+        | Jika ada ribuan measurement, query summary juga dilakukan ribuan kali.
+        |
+        | Sekarang kita hanya mencatat ID-nya terlebih dahulu.
+        | Summary akan dihitung sekali setelah seluruh row selesai diproses.
+        |
+        */
+
+        $equipmentInspectionIds = [];
 
         /*
         |--------------------------------------------------------------------------
@@ -71,7 +88,8 @@ class OdxImportService
         DB::transaction(function () use (
             $rows,
             &$imported,
-            &$updated
+            &$updated,
+            &$equipmentInspectionIds
         ) {
 
             foreach ($rows as $data) {
@@ -163,12 +181,6 @@ class OdxImportService
                 |
                 | Inspector TIDAK diambil dari ODX.
                 |
-                | Karena kolom inspections.inspector masih wajib di database,
-                | kita gunakan "Unassigned" sebagai placeholder.
-                |
-                | Inspector sebenarnya akan disimpan di:
-                | measurement_results.inspector
-                |
                 */
 
                 $inspection =
@@ -199,10 +211,6 @@ class OdxImportService
                 |--------------------------------------------------------------------------
                 | 4. EQUIPMENT
                 |--------------------------------------------------------------------------
-                |
-                | equipment_id wajib.
-                | Kita gunakan ID equipment dari path ODX.
-                |
                 */
 
                 $equipment = Equipment::where(
@@ -243,8 +251,8 @@ class OdxImportService
 
                     /*
                     |--------------------------------------------------------------------------
-                    | Update informasi equipment jika sebelumnya
-                    | sudah ada tetapi data ODX lebih lengkap.
+                    | Update informasi equipment jika data ODX
+                    | lebih lengkap.
                     |--------------------------------------------------------------------------
                     */
 
@@ -312,12 +320,10 @@ class OdxImportService
                                 $equipment->id,
 
                             /*
-                            | Summary will be recalculated from the
-                            | actual measurement_results after import.
-                            | This is important when correcting old
-                            | records that were previously imported
-                            | using the wrong ODX field.
+                            | Summary akan dihitung ulang
+                            | setelah seluruh measurement selesai.
                             */
+
                             'highest_overall' =>
                                 0.00,
 
@@ -356,6 +362,16 @@ class OdxImportService
 
                 /*
                 |--------------------------------------------------------------------------
+                | CATAT ID UNTUK FINAL SUMMARY
+                |--------------------------------------------------------------------------
+                */
+
+                $equipmentInspectionIds[
+                    (int) $equipmentInspection->id
+                ] = true;
+
+                /*
+                |--------------------------------------------------------------------------
                 | 6. MEASUREMENT POINT
                 |--------------------------------------------------------------------------
                 */
@@ -369,15 +385,13 @@ class OdxImportService
                     $machineType ?: 'Unknown';
 
                 /*
-                 * Cari measurement point existing secara aman.
-                 *
-                 * Identitas measurement point:
-                 * equipment_id + point_name
-                 *
-                 * point_name dinormalisasi dengan TRIM + LOWER supaya
-                 * perbedaan spasi/case dari source ODX tidak membuat
-                 * measurement point baru.
-                 */
+                |--------------------------------------------------------------------------
+                | Cari measurement point existing secara aman.
+                |
+                | Identitas:
+                | equipment_id + point_name
+                |--------------------------------------------------------------------------
+                */
 
                 $normalizedPointName =
                     strtolower(
@@ -421,10 +435,11 @@ class OdxImportService
                 } else {
 
                     /*
-                     * Point sudah ada:
-                     * JANGAN create MeasurementPoint baru.
-                     * Hanya update metadata-nya.
-                     */
+                    |--------------------------------------------------------------------------
+                    | Point sudah ada:
+                    | jangan create point baru.
+                    |--------------------------------------------------------------------------
+                    */
 
                     $measurementPoint->location =
                         $location;
@@ -440,40 +455,7 @@ class OdxImportService
 
                 /*
                 |--------------------------------------------------------------------------
-                | 7. UPDATE HIGHEST POINT
-                |--------------------------------------------------------------------------
-                */
-
-                $currentHighest =
-                    (float) $equipmentInspection->highest_overall;
-
-                if (
-                    abs(
-                        $currentHighest -
-                        $overallVelocity
-                    ) < 0.000001
-                ) {
-
-                    DB::table(
-                        'equipment_inspections'
-                    )
-                    ->where(
-                        'id',
-                        $equipmentInspection->id
-                    )
-                    ->update([
-
-                        'highest_point_id' =>
-                            $measurementPoint->id,
-
-                        'updated_at' =>
-                            now(),
-                    ]);
-                }
-
-                /*
-                |--------------------------------------------------------------------------
-                | 8. MEASUREMENT RESULT
+                | 7. MEASUREMENT RESULT
                 |--------------------------------------------------------------------------
                 |
                 | KEY:
@@ -489,7 +471,7 @@ class OdxImportService
                 |
                 | Inspector:
                 | TIDAK diubah oleh ODX.
-                |
+                |--------------------------------------------------------------------------
                 */
 
                 $existingResult =
@@ -546,23 +528,18 @@ class OdxImportService
                         null,
                 ];
 
+                /*
+                |--------------------------------------------------------------------------
+                | UPDATE EXISTING
+                |--------------------------------------------------------------------------
+                */
+
                 if ($existingResult) {
 
                     /*
                     |--------------------------------------------------------------------------
-                    | UPDATE EXISTING
-                    |--------------------------------------------------------------------------
-                    |
                     | Inspector sengaja TIDAK disentuh.
-                    |
-                    | Kalau sebelumnya sudah diisi:
-                    |
-                    | 17 Jul 10:00 -> Azmal
-                    |
-                    | lalu ODX di-import ulang, tetap:
-                    |
-                    | 17 Jul 10:00 -> Azmal
-                    |
+                    |--------------------------------------------------------------------------
                     */
 
                     $existingResult->inspection_id =
@@ -602,10 +579,6 @@ class OdxImportService
                     |--------------------------------------------------------------------------
                     | INSERT NEW
                     |--------------------------------------------------------------------------
-                    |
-                    | Inspector otomatis NULL.
-                    | Akan diisi manual nanti.
-                    |
                     */
 
                     $result =
@@ -626,6 +599,11 @@ class OdxImportService
                     $result->measurement_date =
                         $resultData['measurement_date'];
 
+                    /*
+                    | Inspector otomatis NULL.
+                    | Akan diisi manual nanti.
+                    */
+
                     $result->inspector =
                         null;
 
@@ -645,19 +623,29 @@ class OdxImportService
 
                     $imported++;
                 }
+            }
 
-                /*
-                |--------------------------------------------------------------------------
-                | REFRESH EQUIPMENT INSPECTION SUMMARY
-                |--------------------------------------------------------------------------
-                |
-                | Always recalculate from the measurement_results table.
-                | This prevents previously imported wrong RMS values from
-                | remaining inside highest_overall after a corrected ODX
-                | file is re-imported.
-                */
+            /*
+            |--------------------------------------------------------------------------
+            | 8. FINAL REFRESH EQUIPMENT INSPECTION SUMMARY
+            |--------------------------------------------------------------------------
+            |
+            | PENTING:
+            |
+            | Sebelumnya fungsi ini dipanggil setiap measurement.
+            |
+            | Sekarang hanya dipanggil satu kali untuk setiap
+            | equipment inspection yang terlibat.
+            |
+            */
+
+            foreach (
+                array_keys($equipmentInspectionIds)
+                as $equipmentInspectionId
+            ) {
+
                 $this->refreshEquipmentInspectionSummary(
-                    (int) $equipmentInspection->id
+                    (int) $equipmentInspectionId
                 );
             }
         });
@@ -763,12 +751,9 @@ class OdxImportService
     | REFRESH EQUIPMENT INSPECTION SUMMARY
     |--------------------------------------------------------------------------
     |
-    | Recalculate the session summary from the measurement_results table.
-    |
-    | This is intentionally done after every imported measurement so a
-    | re-import using corrected ODX mapping can also correct existing
-    | highest_overall / severity values without deleting any history.
-    |
+    | Fungsi ini sekarang dipanggil SATU KALI per equipment inspection
+    | setelah seluruh measurement selesai di-import.
+    |--------------------------------------------------------------------------
     */
 
     private function refreshEquipmentInspectionSummary(
@@ -852,22 +837,11 @@ class OdxImportService
     | SEVERITY - OMNITREND 10816-3 PROFILE
     |--------------------------------------------------------------------------
     |
-    | The uploaded ODX contains the OMNITREND setup blob, but its binary
-    | SetupData does not expose the four numeric severity boundaries as
-    | readable decimal values. Therefore we do NOT invent a new severity
-    | algorithm from the measurement values.
-    |
-    | We mirror the user's confirmed OMNITREND 10816-3 alarm profile used
-    | by the current dashboard:
-    |
     | < 2.80      Normal
     | < 4.50      Alert
     | < 7.10      Danger
     | >= 7.10     Critical
-    |
-    | Keep these limits in ONE place so the application uses the same
-    | severity profile consistently for imported sessions.
-    |
+    |--------------------------------------------------------------------------
     */
 
     private const OMNITREND_10816_3_LIMITS = [
@@ -875,6 +849,7 @@ class OdxImportService
         'alert_max' => 4.50,
         'danger_max' => 7.10,
     ];
+
 
     private function determineSeverity(
         float $overall
