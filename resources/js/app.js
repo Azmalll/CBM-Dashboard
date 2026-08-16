@@ -168,11 +168,18 @@ document.addEventListener('DOMContentLoaded', () => {
             );
 
             const importData =
-                await importResponse
-                    .json()
-                    .catch(() => ({}));
+    await importResponse
+        .json()
+        .catch(() => ({}));
 
-            const importSummary = [
+if (!importResponse.ok) {
+    throw new Error(
+        importData.message ||
+        'Import ODX gagal.'
+    );
+}
+
+const importSummary = [
     importData.message || 'Import ODX berhasil.',
     `Imported: ${importData.imported ?? 0}`,
     `Updated: ${importData.updated ?? 0}`,
@@ -190,28 +197,20 @@ progress.classList.add('hidden');
 setTimeout(() => {
     window.location.reload();
 }, 4000);
-            );
 
-            fileInput.value = '';
-            progress.classList.add('hidden');
+} catch (error) {
 
-            setTimeout(() => {
-                window.location.reload();
-            }, 1200);
+    console.error(
+        'ODX import error:',
+        error
+    );
 
-        } catch (error) {
-
-            console.error(
-                'ODX import error:',
-                error
-            );
-
-            showStatus(
-                error instanceof Error
-                    ? error.message
-                    : 'Import ODX gagal.',
-                'error'
-            );
+    showStatus(
+        error instanceof Error
+            ? error.message
+            : 'Import ODX gagal.',
+        'error'
+    );
 
             button.textContent =
                 'Import ODX';
