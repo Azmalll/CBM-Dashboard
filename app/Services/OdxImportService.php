@@ -1077,15 +1077,13 @@ class OdxImportService
         array $incoming
     ): bool {
         return
-            (float) (
+            $this->sameNullableNumber(
                 $existing->overall_velocity ??
                 $existing['overall_velocity'] ??
-                0
-            )
-            ===
-            (float) (
+                null,
+
                 $incoming['overall_velocity'] ??
-                0
+                null
             )
             &&
             (string) (
@@ -1118,6 +1116,15 @@ class OdxImportService
             );
     }
 
+    /**
+     * Compare numeric values using the same precision
+     * as measurement_results database columns.
+     *
+     * measurement_results:
+     * - overall_velocity DECIMAL(..., 3)
+     * - peak_value       DECIMAL(..., 3)
+     * - crest_factor     DECIMAL(..., 3)
+     */
     private function sameNullableNumber(
         $a,
         $b
@@ -1137,8 +1144,19 @@ class OdxImportService
         }
 
         return
-            (float) $a ===
-            (float) $b;
+            number_format(
+                (float) $a,
+                3,
+                '.',
+                ''
+            )
+            ===
+            number_format(
+                (float) $b,
+                3,
+                '.',
+                ''
+            );
     }
 
     /*
