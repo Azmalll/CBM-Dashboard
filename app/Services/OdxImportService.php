@@ -706,6 +706,28 @@ class OdxImportService
 
                 $uniqueKeys = [];
 
+                                /*
+                |--------------------------------------------------------------------------
+                | 10. ODX MEASUREMENT INTEGRITY
+                |--------------------------------------------------------------------------
+                |
+                | Satu measurement dianggap unik berdasarkan:
+                |
+                | equipment_inspection_id
+                | measurement_point_id
+                | measurement_datetime
+                |
+                | Jika duplicate exact muncul di dalam ODX:
+                | - Jika datanya sama -> deduplicate
+                | - Jika datanya berbeda -> FAIL dan rollback
+                |
+                | Existing measurement di database TIDAK dianggap error.
+                | Akan diproses oleh UPSERT.
+                |--------------------------------------------------------------------------
+                */
+
+                $uniqueMeasurementRows = [];
+
                 foreach (
                     $measurementRows as $row
                 ) {
@@ -716,33 +738,64 @@ class OdxImportService
 
                     if (
                         isset(
-                            $uniqueKeys[$key]
+                            $uniqueMeasurementRows[$key]
                         )
                     ) {
-                        throw new RuntimeException(
-                            'ODX integrity gagal: ' .
-                            'duplicate exact measurement ditemukan: ' .
-                            $key
-                        );
+                        $existingRow =
+                            $uniqueMeasurementRows[$key];
+
+                        $sameMeasurement =
+                            ($existingRow['overall_velocity'] ?? null)
+                            ===
+                            ($row['overall_velocity'] ?? null)
+                            &&
+                            ($existingRow['unit'] ?? null)
+                            ===
+                            ($row['unit'] ?? null)
+                            &&
+                            ($existingRow['peak_value'] ?? null)
+                            ===
+                            ($row['peak_value'] ?? null)
+                            &&
+                            ($existingRow['crest_factor'] ?? null)
+                            ===
+                            ($row['crest_factor'] ?? null);
+
+                        if (!$sameMeasurement) {
+                            throw new RuntimeException(
+                                'ODX integrity gagal: ' .
+                                'duplicate measurement dengan nilai berbeda ditemukan: ' .
+                                $key
+                            );
+                        }
+
+                        /*
+                        | Duplicate exact:
+                        | abaikan baris kedua karena measurement yang sama.
+                        */
+                        continue;
                     }
 
-                    $uniqueKeys[$key] = true;
+                    $uniqueMeasurementRows[$key] =
+                        $row;
                 }
 
+                $uniqueMeasurementRows =
+                    array_values(
+                        $uniqueMeasurementRows
+                    );
+
                 $expectedCount =
-                    count($uniqueKeys);
+                    count(
+                        $uniqueMeasurementRows
+                    );
 
                 if (
-                    $expectedCount !==
-                    $parserCount
+                    $expectedCount === 0
                 ) {
                     throw new RuntimeException(
                         'ODX integrity gagal: ' .
-                        'jumlah unique measurement (' .
-                        $expectedCount .
-                        ') tidak sama dengan parser (' .
-                        $parserCount .
-                        ').'
+                        'tidak ada measurement valid yang berhasil diproses.'
                     );
                 }
 
@@ -751,13 +804,22 @@ class OdxImportService
                 | 11. BULK UPSERT
                 |--------------------------------------------------------------------------
                 |
-                | Semua batch berada dalam transaction yang sama.
+                | Semua unique measurement diproses dalam transaction yang sama.
+                |
+                | Existing measurement:
+                | -> UPDATE
+                |
+                | Measurement baru:
+                | -> INSERT
+                |
+                | Duplicate exact dari ODX:
+                | -> sudah dideduplicate sebelum sampai sini
                 |--------------------------------------------------------------------------
                 */
 
                 foreach (
                     array_chunk(
-                        $measurementRows,
+                        $uniqueMeasurementRows,
                         self::BATCH_SIZE
                     ) as $chunk
                 ) {
