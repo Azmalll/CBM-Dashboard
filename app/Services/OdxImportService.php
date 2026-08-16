@@ -779,7 +779,7 @@ class OdxImportService
                     $uniqueMeasurementRows[$key] =
                         $row;
                 }
-
+    
                 $uniqueMeasurementRows =
                     array_values(
                         $uniqueMeasurementRows

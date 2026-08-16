@@ -544,6 +544,7 @@ class OdxParser
 
 
             /*
+             /*
             |--------------------------------------------------------------------------
             | CARI SESSION TIMESTAMP
             |--------------------------------------------------------------------------
@@ -562,7 +563,8 @@ class OdxParser
             |--------------------------------------------------------------------------
             |
             | Kalau tidak ditemukan task lanjutan,
-            | gunakan timestamp Overall Velocity sendiri.
+            | gunakan timestamp Overall Velocity sendiri
+            | sebagai session timestamp.
             */
 
             if ($sessionTimestamp === null) {
@@ -574,19 +576,28 @@ class OdxParser
 
             /*
             |--------------------------------------------------------------------------
-            | TIMESTAMP YANG DISIMPAN
+            | TIMESTAMP MEASUREMENT
             |--------------------------------------------------------------------------
+            |
+            | PENTING:
+            | measurement_datetime HARUS menggunakan timestamp
+            | asli dari Overall Velocity.
+            |
+            | Jangan gunakan $sessionTimestamp di sini.
+            |
+            | Satu equipment + measurement point bisa memiliki
+            | beberapa pengambilan data pada waktu berbeda.
             */
 
             $result['measurement_datetime'] =
                 $this->formatTimestamp(
-                    $sessionTimestamp
+                    $overallTimestamp
                 );
 
 
             /*
-            | Simpan juga timestamp session mentah
-            | untuk debugging / kebutuhan berikutnya.
+            | Simpan timestamp session hasil mapping
+            | untuk kebutuhan inspeksi/session.
             */
             $result['session_timestamp'] =
                 $sessionTimestamp;
