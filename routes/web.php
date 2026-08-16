@@ -331,17 +331,4 @@ Route::middleware('auth')->group(function () {
         ->middleware(RoleMiddleware::class . ':admin')
         ->name('odx-import.store');
     
-    Route::post(
-    '/odx-import/client-token',
-    [OdxImportController::class, 'clientToken']
-    )
-    ->middleware(RoleMiddleware::class . ':admin')
-    ->name('odx-import.client-token');
-
-    Route::post(
-    '/odx-import',
-    [OdxImportController::class, 'store']
-    )
-    ->middleware(RoleMiddleware::class . ':admin')
-    ->name('odx-import.store');
 });

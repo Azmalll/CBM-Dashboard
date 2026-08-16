@@ -12,7 +12,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const status = document.getElementById('odx-status');
     const progress = document.getElementById('odx-progress');
 
-    const tokenUrl = form.dataset.tokenUrl;
+    const uploadUrl = form.dataset.uploadUrl;
     const importUrl = form.dataset.importUrl;
 
     if (
@@ -20,7 +20,7 @@ document.addEventListener('DOMContentLoaded', () => {
         !button ||
         !status ||
         !progress ||
-        !tokenUrl ||
+        !uploadUrl ||
         !importUrl
     ) {
         console.error('ODX import configuration is incomplete.');
@@ -29,7 +29,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function showStatus(message, type = 'info') {
         status.textContent = message;
-        status.className = 'mb-6 px-5 py-4 rounded-xl border';
+
+        status.className =
+            'mb-6 px-5 py-4 rounded-xl border';
 
         if (type === 'success') {
             status.classList.add(
@@ -95,19 +97,35 @@ document.addEventListener('DOMContentLoaded', () => {
         progress.classList.add('hidden');
 
         try {
+
+            /*
+             * Buat pathname sendiri agar Laravel dapat
+             * mengenali bahwa file berasal dari area ODX temporary.
+             */
+            const safeName =
+                file.name
+                    .replace(/[^a-zA-Z0-9._-]/g, '-')
+                    .replace(/-+/g, '-');
+
+            const pathname =
+                `odx-temp/${crypto.randomUUID()}-${safeName}`;
+
             /*
              * Browser -> Vercel Blob.
              *
-             * File BESAR tidak dikirim sebagai body
-             * ke Laravel Function.
+             * File besar tidak melewati Laravel.
              */
             const blob = await upload(
-                file.name,
+                pathname,
                 file,
                 {
                     access: 'private',
-                    handleUploadUrl: tokenUrl,
+                    handleUploadUrl: uploadUrl,
                     multipart: true,
+
+                    clientPayload: JSON.stringify({
+                        type: 'odx'
+                    }),
 
                     onUploadProgress: ({ percentage }) => {
                         setProgress(percentage);
@@ -122,9 +140,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
             button.textContent = 'Memproses...';
 
-            /*
-             * Laravel sekarang hanya menerima pathname kecil.
-             */
             const csrfToken =
                 document.querySelector(
                     'meta[name="csrf-token"]'
@@ -134,15 +149,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 importUrl,
                 {
                     method: 'POST',
+
                     headers: {
                         'Content-Type':
                             'application/json',
-                        'X-CSRF-TOKEN': csrfToken,
+
+                        'X-CSRF-TOKEN':
+                            csrfToken,
+
                         Accept:
                             'application/json',
                     },
+
                     body: JSON.stringify({
-                        pathname: blob.pathname,
+                        pathname: blob.pathname
                     }),
                 }
             );
@@ -168,14 +188,12 @@ document.addEventListener('DOMContentLoaded', () => {
             fileInput.value = '';
             progress.classList.add('hidden');
 
-            /*
-             * Reload supaya dashboard membaca data terbaru.
-             */
             setTimeout(() => {
                 window.location.reload();
             }, 1200);
 
         } catch (error) {
+
             console.error(
                 'ODX import error:',
                 error
@@ -188,7 +206,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 'error'
             );
 
-            button.textContent = 'Import ODX';
+            button.textContent =
+                'Import ODX';
+
             button.disabled = false;
         }
     });

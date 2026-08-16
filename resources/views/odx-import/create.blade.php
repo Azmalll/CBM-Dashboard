@@ -26,11 +26,11 @@
     <div class="bg-white rounded-2xl shadow-sm p-8">
 
         <form
-    id="odx-import-form"
-    method="POST"
-    data-token-url="{{ route('odx-import.client-token') }}"
-    data-import-url="{{ route('odx-import.store') }}"
->
+            id="odx-import-form"
+            method="POST"
+            data-upload-url="/api/blob-upload"
+            data-import-url="{{ route('odx-import.store') }}"
+        >
             @csrf
 
             <div class="mb-6">

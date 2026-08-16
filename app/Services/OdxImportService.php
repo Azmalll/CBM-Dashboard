@@ -6,7 +6,6 @@ use App\Models\Equipment;
 use App\Models\MeasurementPoint;
 use App\Models\MeasurementResult;
 use App\Models\Inspection;
-use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 
@@ -31,15 +30,13 @@ class OdxImportService
      * Inspector TIDAK ditentukan oleh ODX.
      * Inspector akan di-assign secara manual pada Measurement Result.
      */
-    public function import(UploadedFile $file): array
-    {
-        $filePath = $file->getRealPath();
-
-        if (!$filePath) {
-            throw new \RuntimeException(
-                'File ODX tidak dapat dibaca.'
-            );
-        }
+   public function import(string $filePath): array
+{
+    if (!is_file($filePath)) {
+        throw new \RuntimeException(
+            'File ODX tidak ditemukan atau tidak dapat dibaca.'
+        );
+    }
 
         /*
         |--------------------------------------------------------------------------
@@ -50,13 +47,17 @@ class OdxImportService
         $rows = $this->parser->parseOverallVelocity($filePath);
 
         if (empty($rows)) {
-            return [
-                'message' =>
-                    'Tidak ada data Overall Velocity yang ditemukan dari file ODX.',
-                'imported' => 0,
-                'updated' => 0,
-            ];
-        }
+    return [
+        'message' =>
+            'Tidak ada data Overall Velocity yang ditemukan dari file ODX.',
+
+        'imported' => 0,
+
+        'updated' => 0,
+
+        'total' => 0,
+    ];
+}
 
         $imported = 0;
         $updated = 0;
