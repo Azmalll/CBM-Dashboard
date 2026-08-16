@@ -4,15 +4,29 @@ namespace App\Services;
 
 use App\Models\Equipment;
 use App\Models\MeasurementPoint;
-use App\Models\MeasurementResult;
 use App\Models\Inspection;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use RuntimeException;
 
 class OdxImportService
 {
-    private const IMPORT_BATCH_SIZE = 500;
+    /**
+     * Batch size hanya untuk ukuran query.
+     *
+     * PENTING:
+     * Semua batch tetap berada di DALAM SATU transaction.
+     *
+     * Jadi:
+     *
+     * batch 1 OK
+     * batch 2 OK
+     * batch 3 ERROR
+     *
+     * => seluruh import ROLLBACK.
+     */
+    private const BATCH_SIZE = 500;
 
     public function __construct(
         private OdxParser $parser
@@ -20,18 +34,15 @@ class OdxImportService
     }
 
     /**
-     * Import ODX.
+     * Import ODX Overall Velocity.
      *
-     * Optimized for large Omnitrend ODX files:
-     * - ODX is still parsed completely by OdxParser.
-     * - Repeated Equipment / Inspection / Equipment Inspection /
-     *   Measurement Point queries are cached in memory.
-     * - Existing Measurement Result keys are loaded in batches.
-     * - New Measurement Results are inserted in bulk.
-     * - Equipment Inspection summary is refreshed once per inspection.
+     * Measurement identity:
      *
-     * This avoids the previous N x queries-per-measurement pattern
-     * that could keep a Vercel Function alive until the 300s timeout.
+     * equipment_inspection_id
+     * + measurement_point_id
+     * + measurement_datetime
+     *
+     * Timestamp berbeda = measurement berbeda.
      */
     public function import(string $filePath): array
     {
@@ -47,887 +58,1014 @@ class OdxImportService
         |--------------------------------------------------------------------------
         */
 
-        $rows = $this->parser->parseOverallVelocity($filePath);
+        $rows = $this->parser->parseOverallVelocity(
+            $filePath
+        );
 
-        if (empty($rows)) {
+        $parserCount = count($rows);
+
+        if ($parserCount === 0) {
             return [
-                'message' => 'Tidak ada data Overall Velocity yang ditemukan dari file ODX.',
+                'message' =>
+                    'Tidak ada data Overall Velocity yang ditemukan dari file ODX.',
+
                 'imported' => 0,
                 'updated' => 0,
                 'total' => 0,
+                'parser_count' => 0,
+                'verified_count' => 0,
             ];
         }
 
-        /*
-        |--------------------------------------------------------------------------
-        | 2. CACHE ENTITY
-        |--------------------------------------------------------------------------
-        |
-        | Entity lookup sebelumnya dilakukan berulang untuk SETIAP measurement.
-        | Pada file besar hal ini menghasilkan ribuan / puluhan ribu query.
-        |
-        | Sekarang setiap entity hanya dicari sekali selama satu import.
-        |--------------------------------------------------------------------------
-        */
-
-        $inspectionCache = [];
-        $equipmentCache = [];
-        $equipmentInspectionCache = [];
-        $measurementPointCache = [];
-
-        $preparedRows = [];
-        $equipmentInspectionIds = [];
+        Log::info('ODX parser completed.', [
+            'file' => basename($filePath),
+            'parser_count' => $parserCount,
+        ]);
 
         /*
         |--------------------------------------------------------------------------
-        | 3. PREPARE / RESOLVE MASTER DATA
+        | 2. SATU TRANSACTION UNTUK SELURUH IMPORT
         |--------------------------------------------------------------------------
         */
 
-        foreach ($rows as $data) {
-            $equipmentName = trim(
-                $data['equipment_name'] ?? ''
-            );
-
-            $pointName = trim(
-                $data['measurement_point_name'] ?? ''
-            );
-
-            $measurementDatetime =
-                $data['measurement_datetime'] ?? null;
-
-            $overallVelocity =
-                isset($data['overall_velocity'])
-                    ? (float) $data['overall_velocity']
-                    : 0.00;
-
-            if (
-                $equipmentName === '' ||
-                $pointName === '' ||
-                !$measurementDatetime
+        return DB::transaction(
+            function () use (
+                $rows,
+                $parserCount
             ) {
-                continue;
-            }
+                /*
+                |--------------------------------------------------------------------------
+                | CACHE MASTER DATA
+                |--------------------------------------------------------------------------
+                */
 
-            $measurementCarbon = Carbon::parse(
-                $measurementDatetime
-            );
+                $inspectionCache = [];
+                $equipmentCache = [];
+                $equipmentInspectionCache = [];
+                $measurementPointCache = [];
 
-            $measurementDatetime =
-                $measurementCarbon->format('Y-m-d H:i:s');
+                /*
+                |--------------------------------------------------------------------------
+                | HASIL YANG AKAN DITULIS
+                |--------------------------------------------------------------------------
+                */
 
-            $measurementDate =
-                $measurementCarbon->toDateString();
+                $measurementRows = [];
 
-            /*
-            |--------------------------------------------------------------------------
-            | PARSE PATH
-            |--------------------------------------------------------------------------
-            */
+                $equipmentInspectionIds = [];
 
-            $pathInfo = $this->parsePath(
-                $data['path'] ?? ''
-            );
+                /*
+                |--------------------------------------------------------------------------
+                | 3. PREPARE SELURUH ROW
+                |--------------------------------------------------------------------------
+                */
 
-            $plant =
-                $pathInfo['plant'];
+                foreach ($rows as $index => $data) {
 
-            $area =
-                $pathInfo['area'];
+                    $rowNumber = $index + 1;
 
-            $equipmentIdCode =
-                $pathInfo['equipment_id'];
-
-            $machineType =
-                $pathInfo['machine_type'];
-
-            if (!$equipmentIdCode) {
-                continue;
-            }
-
-            /*
-            |--------------------------------------------------------------------------
-            | INSPECTION
-            |--------------------------------------------------------------------------
-            |
-            | Cache berdasarkan tanggal.
-            |--------------------------------------------------------------------------
-            */
-
-            if (!array_key_exists($measurementDate, $inspectionCache)) {
-                $inspection =
-                    Inspection::where(
-                        'inspection_date',
-                        $measurementDate
-                    )
-                    ->orderBy('id')
-                    ->first();
-
-                if (!$inspection) {
-                    $inspection = new Inspection();
-
-                    $inspection->inspection_date =
-                        $measurementDate;
-
-                    $inspection->inspector =
-                        'Unassigned';
-
-                    $inspection->remarks =
-                        'Inspection session created from ODX import. Inspector is assigned per measurement.';
-
-                    $inspection->save();
-                }
-
-                $inspectionCache[$measurementDate] =
-                    $inspection;
-            }
-
-            $inspection =
-                $inspectionCache[$measurementDate];
-
-            /*
-            |--------------------------------------------------------------------------
-            | EQUIPMENT
-            |--------------------------------------------------------------------------
-            |
-            | Cache berdasarkan equipment_id dari ODX.
-            |--------------------------------------------------------------------------
-            */
-
-            if (!array_key_exists($equipmentIdCode, $equipmentCache)) {
-                $equipment =
-                    Equipment::where(
-                        'equipment_id',
-                        $equipmentIdCode
-                    )->first();
-
-                if (!$equipment) {
-                    $equipment = new Equipment();
-
-                    $equipment->equipment_id =
-                        $equipmentIdCode;
-
-                    $equipment->equipment_name =
-                        $equipmentName;
-
-                    $equipment->area =
-                        $area;
-
-                    $equipment->plant =
-                        $plant;
-
-                    $equipment->machine_type =
-                        $machineType ?: 'Unknown';
-
-                    $equipment->priority =
-                        'Medium';
-
-                    $equipment->status =
-                        $this->determineSeverity(
-                            $overallVelocity
-                        );
-
-                    $equipment->save();
-                } else {
                     /*
                     |--------------------------------------------------------------------------
-                    | Update hanya jika memang berubah.
+                    | DATA DASAR
                     |--------------------------------------------------------------------------
                     */
 
-                    $changed = false;
+                    $equipmentName = trim(
+                        (string) (
+                            $data['equipment_name'] ?? ''
+                        )
+                    );
+
+                    $pointName = trim(
+                        (string) (
+                            $data['measurement_point_name'] ?? ''
+                        )
+                    );
+
+                    $rawDatetime =
+                        $data['measurement_datetime'] ?? null;
 
                     if (
-                        $equipment->equipment_name !==
-                        $equipmentName
+                        $equipmentName === '' ||
+                        $pointName === '' ||
+                        !$rawDatetime
                     ) {
-                        $equipment->equipment_name =
-                            $equipmentName;
-
-                        $changed = true;
+                        throw new RuntimeException(
+                            "ODX row #{$rowNumber} tidak valid: " .
+                            "equipment, measurement point, atau datetime kosong."
+                        );
                     }
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | DATETIME
+                    |--------------------------------------------------------------------------
+                    */
+
+                    try {
+                        $measurementCarbon =
+                            Carbon::parse(
+                                $rawDatetime
+                            );
+                    } catch (\Throwable $e) {
+                        throw new RuntimeException(
+                            "ODX row #{$rowNumber} memiliki datetime tidak valid: " .
+                            $rawDatetime,
+                            previous: $e
+                        );
+                    }
+
+                    $measurementDatetime =
+                        $measurementCarbon->format(
+                            'Y-m-d H:i:s'
+                        );
+
+                    $measurementDate =
+                        $measurementCarbon->toDateString();
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | PATH
+                    |--------------------------------------------------------------------------
+                    */
+
+                    $pathInfo =
+                        $this->parsePath(
+                            (string) (
+                                $data['path'] ?? ''
+                            )
+                        );
+
+                    $plant =
+                        $pathInfo['plant'];
+
+                    $area =
+                        $pathInfo['area'];
+
+                    $equipmentIdCode =
+                        $pathInfo['equipment_id'];
+
+                    $machineType =
+                        $pathInfo['machine_type'];
 
                     if (
-                        $area !== null &&
-                        $area !== '' &&
-                        $equipment->area !== $area
+                        !$equipmentIdCode
                     ) {
-                        $equipment->area =
-                            $area;
-
-                        $changed = true;
+                        throw new RuntimeException(
+                            "ODX row #{$rowNumber}: " .
+                            "Equipment ID tidak ditemukan dari path."
+                        );
                     }
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | OVERALL VELOCITY
+                    |--------------------------------------------------------------------------
+                    |
+                    | Ini adalah nilai RMS yang dipilih parser
+                    | dari Overall Velocity.
+                    |--------------------------------------------------------------------------
+                    */
 
                     if (
-                        $plant !== null &&
-                        $plant !== '' &&
-                        $equipment->plant !== $plant
+                        !array_key_exists(
+                            'overall_velocity',
+                            $data
+                        )
                     ) {
-                        $equipment->plant =
-                            $plant;
-
-                        $changed = true;
+                        throw new RuntimeException(
+                            "ODX row #{$rowNumber}: " .
+                            "Overall Velocity tidak ditemukan."
+                        );
                     }
+
+                    $overallVelocity =
+                        (float) $data['overall_velocity'];
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | 4. INSPECTION
+                    |--------------------------------------------------------------------------
+                    */
 
                     if (
-                        $machineType !== null &&
-                        $machineType !== '' &&
-                        $equipment->machine_type !== $machineType
+                        !isset(
+                            $inspectionCache[
+                                $measurementDate
+                            ]
+                        )
                     ) {
-                        $equipment->machine_type =
-                            $machineType;
+                        $inspection =
+                            Inspection::where(
+                                'inspection_date',
+                                $measurementDate
+                            )
+                            ->orderBy('id')
+                            ->first();
 
-                        $changed = true;
+                        if (!$inspection) {
+                            $inspection =
+                                new Inspection();
+
+                            $inspection->inspection_date =
+                                $measurementDate;
+
+                            $inspection->inspector =
+                                'Unassigned';
+
+                            $inspection->remarks =
+                                'Inspection session created from ODX import. Inspector is assigned per measurement.';
+
+                            $inspection->save();
+                        }
+
+                        $inspectionCache[
+                            $measurementDate
+                        ] = $inspection;
                     }
 
-                    if ($changed) {
-                        $equipment->save();
+                    $inspection =
+                        $inspectionCache[
+                            $measurementDate
+                        ];
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | 5. EQUIPMENT
+                    |--------------------------------------------------------------------------
+                    */
+
+                    if (
+                        !isset(
+                            $equipmentCache[
+                                $equipmentIdCode
+                            ]
+                        )
+                    ) {
+                        $equipment =
+                            Equipment::where(
+                                'equipment_id',
+                                $equipmentIdCode
+                            )->first();
+
+                        if (!$equipment) {
+                            $equipment =
+                                new Equipment();
+
+                            $equipment->equipment_id =
+                                $equipmentIdCode;
+
+                            $equipment->equipment_name =
+                                $equipmentName;
+
+                            $equipment->area =
+                                $area;
+
+                            $equipment->plant =
+                                $plant;
+
+                            $equipment->machine_type =
+                                $machineType ?: 'Unknown';
+
+                            $equipment->priority =
+                                'Medium';
+
+                            $equipment->status =
+                                $this->determineSeverity(
+                                    $overallVelocity
+                                );
+
+                            $equipment->save();
+                        } else {
+                            $changed = false;
+
+                            if (
+                                $equipment->equipment_name !==
+                                $equipmentName
+                            ) {
+                                $equipment->equipment_name =
+                                    $equipmentName;
+
+                                $changed = true;
+                            }
+
+                            if (
+                                $area !== null &&
+                                $area !== '' &&
+                                $equipment->area !== $area
+                            ) {
+                                $equipment->area =
+                                    $area;
+
+                                $changed = true;
+                            }
+
+                            if (
+                                $plant !== null &&
+                                $plant !== '' &&
+                                $equipment->plant !== $plant
+                            ) {
+                                $equipment->plant =
+                                    $plant;
+
+                                $changed = true;
+                            }
+
+                            if (
+                                $machineType !== null &&
+                                $machineType !== '' &&
+                                $equipment->machine_type !== $machineType
+                            ) {
+                                $equipment->machine_type =
+                                    $machineType;
+
+                                $changed = true;
+                            }
+
+                            if ($changed) {
+                                $equipment->save();
+                            }
+                        }
+
+                        $equipmentCache[
+                            $equipmentIdCode
+                        ] = $equipment;
                     }
-                }
 
-                $equipmentCache[$equipmentIdCode] =
-                    $equipment;
-            }
+                    $equipment =
+                        $equipmentCache[
+                            $equipmentIdCode
+                        ];
 
-            $equipment =
-                $equipmentCache[$equipmentIdCode];
+                    /*
+                    |--------------------------------------------------------------------------
+                    | 6. EQUIPMENT INSPECTION
+                    |--------------------------------------------------------------------------
+                    */
 
-            /*
-            |--------------------------------------------------------------------------
-            | EQUIPMENT INSPECTION
-            |--------------------------------------------------------------------------
-            */
+                    $equipmentInspectionKey =
+                        $inspection->id .
+                        '|' .
+                        $equipment->id;
 
-            $equipmentInspectionKey =
-                $inspection->id . '|' . $equipment->id;
+                    if (
+                        !isset(
+                            $equipmentInspectionCache[
+                                $equipmentInspectionKey
+                            ]
+                        )
+                    ) {
+                        $equipmentInspection =
+                            DB::table(
+                                'equipment_inspections'
+                            )
+                            ->where(
+                                'inspection_id',
+                                $inspection->id
+                            )
+                            ->where(
+                                'equipment_id',
+                                $equipment->id
+                            )
+                            ->lockForUpdate()
+                            ->first();
 
-            if (
-                !array_key_exists(
-                    $equipmentInspectionKey,
-                    $equipmentInspectionCache
-                )
-            ) {
-                $equipmentInspection =
-                    DB::table('equipment_inspections')
-                    ->where(
-                        'inspection_id',
-                        $inspection->id
-                    )
-                    ->where(
-                        'equipment_id',
-                        $equipment->id
-                    )
-                    ->first();
+                        if (!$equipmentInspection) {
 
-                if (!$equipmentInspection) {
-                    $now = now();
+                            $now = now();
+
+                            $equipmentInspectionId =
+                                DB::table(
+                                    'equipment_inspections'
+                                )->insertGetId([
+                                    'inspection_id' =>
+                                        $inspection->id,
+
+                                    'equipment_id' =>
+                                        $equipment->id,
+
+                                    'highest_overall' =>
+                                        0.00,
+
+                                    'highest_point_id' =>
+                                        null,
+
+                                    'severity' =>
+                                        'Pending',
+
+                                    'diagnosis' =>
+                                        null,
+
+                                    'recommendation' =>
+                                        null,
+
+                                    'report_file' =>
+                                        null,
+
+                                    'created_at' =>
+                                        $now,
+
+                                    'updated_at' =>
+                                        $now,
+                                ]);
+
+                            $equipmentInspection =
+                                DB::table(
+                                    'equipment_inspections'
+                                )
+                                ->where(
+                                    'id',
+                                    $equipmentInspectionId
+                                )
+                                ->lockForUpdate()
+                                ->first();
+                        }
+
+                        $equipmentInspectionCache[
+                            $equipmentInspectionKey
+                        ] =
+                            $equipmentInspection;
+                    }
+
+                    $equipmentInspection =
+                        $equipmentInspectionCache[
+                            $equipmentInspectionKey
+                        ];
 
                     $equipmentInspectionId =
-                        DB::table('equipment_inspections')
-                        ->insertGetId([
-                            'inspection_id' =>
-                                $inspection->id,
+                        (int) $equipmentInspection->id;
 
-                            'equipment_id' =>
-                                $equipment->id,
+                    $equipmentInspectionIds[
+                        $equipmentInspectionId
+                    ] = true;
 
-                            'highest_overall' =>
-                                0.00,
+                    /*
+                    |--------------------------------------------------------------------------
+                    | 7. MEASUREMENT POINT
+                    |--------------------------------------------------------------------------
+                    */
 
-                            'highest_point_id' =>
-                                null,
+                    $normalizedPointName =
+                        strtolower(
+                            trim($pointName)
+                        );
 
-                            'severity' =>
-                                'Pending',
+                    $measurementPointKey =
+                        $equipment->id .
+                        '|' .
+                        $normalizedPointName;
 
-                            'diagnosis' =>
-                                null,
+                    if (
+                        !isset(
+                            $measurementPointCache[
+                                $measurementPointKey
+                            ]
+                        )
+                    ) {
+                        $measurementPoint =
+                            MeasurementPoint::where(
+                                'equipment_id',
+                                $equipment->id
+                            )
+                            ->whereRaw(
+                                'LOWER(TRIM(point_name)) = ?',
+                                [
+                                    $normalizedPointName
+                                ]
+                            )
+                            ->orderBy('id')
+                            ->first();
 
-                            'recommendation' =>
-                                null,
+                        $direction =
+                            $this->detectDirection(
+                                $pointName
+                            );
 
-                            'report_file' =>
-                                null,
+                        $location =
+                            $machineType ?: 'Unknown';
 
-                            'created_at' =>
-                                $now,
+                        if (!$measurementPoint) {
 
-                            'updated_at' =>
-                                $now,
-                        ]);
+                            $measurementPoint =
+                                new MeasurementPoint();
 
-                    $equipmentInspection = (object) [
-                        'id' =>
+                            $measurementPoint->equipment_id =
+                                $equipment->id;
+
+                            $measurementPoint->point_name =
+                                $pointName;
+
+                            $measurementPoint->location =
+                                $location;
+
+                            $measurementPoint->direction =
+                                $direction;
+
+                            $measurementPoint->active =
+                                true;
+
+                            $measurementPoint->save();
+
+                        } else {
+
+                            $changed = false;
+
+                            if (
+                                $measurementPoint->location !==
+                                $location
+                            ) {
+                                $measurementPoint->location =
+                                    $location;
+
+                                $changed = true;
+                            }
+
+                            if (
+                                $measurementPoint->direction !==
+                                $direction
+                            ) {
+                                $measurementPoint->direction =
+                                    $direction;
+
+                                $changed = true;
+                            }
+
+                            if (
+                                $measurementPoint->active !==
+                                true
+                            ) {
+                                $measurementPoint->active =
+                                    true;
+
+                                $changed = true;
+                            }
+
+                            if ($changed) {
+                                $measurementPoint->save();
+                            }
+                        }
+
+                        $measurementPointCache[
+                            $measurementPointKey
+                        ] =
+                            $measurementPoint;
+                    }
+
+                    $measurementPoint =
+                        $measurementPointCache[
+                            $measurementPointKey
+                        ];
+
+                    /*
+                    |--------------------------------------------------------------------------
+                    | 8. PREPARE MEASUREMENT RESULT
+                    |--------------------------------------------------------------------------
+                    */
+
+                    $measurementRows[] = [
+
+                        'inspection_id' =>
+                            (int) $inspection->id,
+
+                        'equipment_inspection_id' =>
                             $equipmentInspectionId,
+
+                        'measurement_point_id' =>
+                            (int) $measurementPoint->id,
+
+                        'measurement_datetime' =>
+                            $measurementDatetime,
+
+                        'measurement_date' =>
+                            $measurementDate,
+
+                        /*
+                         * Inspector TIDAK diubah oleh ODX.
+                         */
+                        'inspector' =>
+                            null,
+
+                        'overall_velocity' =>
+                            $overallVelocity,
+
+                        'unit' =>
+                            $data['unit'] ??
+                            'mm/s RMS',
+
+                        'peak_value' =>
+                            $data['peak_value'] ??
+                            null,
+
+                        'crest_factor' =>
+                            $data['crest_factor'] ??
+                            null,
+
+                        'created_at' =>
+                            now(),
+
+                        'updated_at' =>
+                            now(),
                     ];
                 }
 
-                $equipmentInspectionCache[
-                    $equipmentInspectionKey
-                ] = $equipmentInspection;
-            }
+                /*
+                |--------------------------------------------------------------------------
+                | 9. PREPARE COUNT HARUS SAMA
+                |--------------------------------------------------------------------------
+                */
 
-            $equipmentInspection =
-                $equipmentInspectionCache[
-                    $equipmentInspectionKey
-                ];
+                $preparedCount =
+                    count($measurementRows);
 
-            $equipmentInspectionId =
-                (int) $equipmentInspection->id;
-
-            $equipmentInspectionIds[
-                $equipmentInspectionId
-            ] = true;
-
-            /*
-            |--------------------------------------------------------------------------
-            | MEASUREMENT POINT
-            |--------------------------------------------------------------------------
-            |
-            | Cache berdasarkan equipment + point.
-            |--------------------------------------------------------------------------
-            */
-
-            $normalizedPointName =
-                strtolower(
-                    trim($pointName)
-                );
-
-            $measurementPointKey =
-                $equipment->id . '|' .
-                $normalizedPointName;
-
-            if (
-                !array_key_exists(
-                    $measurementPointKey,
-                    $measurementPointCache
-                )
-            ) {
-                $measurementPoint =
-                    MeasurementPoint::where(
-                        'equipment_id',
-                        $equipment->id
-                    )
-                    ->whereRaw(
-                        'LOWER(TRIM(point_name)) = ?',
-                        [$normalizedPointName]
-                    )
-                    ->orderBy('id')
-                    ->first();
-
-                $direction =
-                    $this->detectDirection(
-                        $pointName
+                if (
+                    $preparedCount !==
+                    $parserCount
+                ) {
+                    throw new RuntimeException(
+                        'ODX integrity gagal: parser membaca ' .
+                        $parserCount .
+                        ' row, tetapi hanya ' .
+                        $preparedCount .
+                        ' row berhasil dipersiapkan.'
                     );
+                }
 
-                $location =
-                    $machineType ?: 'Unknown';
+                /*
+                |--------------------------------------------------------------------------
+                | 10. EXACT DUPLICATE CHECK
+                |--------------------------------------------------------------------------
+                |
+                | Timestamp berbeda tetap berbeda.
+                |
+                | Duplicate hanya jika:
+                |
+                | inspection + point + datetime
+                | semuanya sama.
+                |--------------------------------------------------------------------------
+                */
 
-                if (!$measurementPoint) {
-                    $measurementPoint =
-                        new MeasurementPoint();
+                $uniqueKeys = [];
 
-                    $measurementPoint->equipment_id =
-                        $equipment->id;
+                foreach (
+                    $measurementRows as $row
+                ) {
+                    $key =
+                        $this->measurementKey(
+                            $row
+                        );
 
-                    $measurementPoint->point_name =
-                        $pointName;
+                    if (
+                        isset(
+                            $uniqueKeys[$key]
+                        )
+                    ) {
+                        throw new RuntimeException(
+                            'ODX integrity gagal: ' .
+                            'duplicate exact measurement ditemukan: ' .
+                            $key
+                        );
+                    }
 
-                    $measurementPoint->location =
-                        $location;
+                    $uniqueKeys[$key] = true;
+                }
 
-                    $measurementPoint->direction =
-                        $direction;
+                $expectedCount =
+                    count($uniqueKeys);
 
-                    $measurementPoint->active =
-                        true;
+                if (
+                    $expectedCount !==
+                    $parserCount
+                ) {
+                    throw new RuntimeException(
+                        'ODX integrity gagal: ' .
+                        'jumlah unique measurement (' .
+                        $expectedCount .
+                        ') tidak sama dengan parser (' .
+                        $parserCount .
+                        ').'
+                    );
+                }
 
-                    $measurementPoint->save();
-                } else {
+                /*
+                |--------------------------------------------------------------------------
+                | 11. BULK UPSERT
+                |--------------------------------------------------------------------------
+                |
+                | Semua batch berada dalam transaction yang sama.
+                |--------------------------------------------------------------------------
+                */
+
+                foreach (
+                    array_chunk(
+                        $measurementRows,
+                        self::BATCH_SIZE
+                    ) as $chunk
+                ) {
+                    DB::table(
+                        'measurement_results'
+                    )->upsert(
+                        $chunk,
+                        [
+                            'equipment_inspection_id',
+                            'measurement_point_id',
+                            'measurement_datetime',
+                        ],
+                        [
+                            'inspection_id',
+                            'measurement_date',
+                            'overall_velocity',
+                            'unit',
+                            'peak_value',
+                            'crest_factor',
+                            'updated_at',
+                        ]
+                    );
+                }
+
+                /*
+                |--------------------------------------------------------------------------
+                | 12. VERIFY DI DALAM TRANSACTION
+                |--------------------------------------------------------------------------
+                |
+                | BELUM COMMIT.
+                |
+                | Kalau verification gagal:
+                | throw -> ROLLBACK SEMUANYA.
+                |--------------------------------------------------------------------------
+                */
+
+                $verifiedCount = 0;
+
+                $rowsByInspection =
+                    [];
+
+                foreach (
+                    $measurementRows as $row
+                ) {
+                    $rowsByInspection[
+                        (int) $row[
+                            'equipment_inspection_id'
+                        ]
+                    ][] =
+                        $row;
+                }
+
+                foreach (
+                    $rowsByInspection
+                    as $equipmentInspectionId =>
+                    $expectedRows
+                ) {
+                    $expectedKeys =
+                        [];
+
+                    $datetimeList =
+                        [];
+
+                    foreach (
+                        $expectedRows as $row
+                    ) {
+                        $key =
+                            $this->measurementKey(
+                                $row
+                            );
+
+                        $expectedKeys[
+                            $key
+                        ] = true;
+
+                        $datetimeList[
+                            $row[
+                                'measurement_datetime'
+                            ]
+                        ] = true;
+                    }
+
                     /*
                     |--------------------------------------------------------------------------
-                    | Update hanya jika memang berubah.
+                    | Ambil measurement yang benar-benar
+                    | ada di DB untuk session tersebut.
                     |--------------------------------------------------------------------------
                     */
 
-                    $changed = false;
+                    $actualRows =
+                        DB::table(
+                            'measurement_results'
+                        )
+                        ->select([
+                            'equipment_inspection_id',
+                            'measurement_point_id',
+                            'measurement_datetime',
+                        ])
+                        ->where(
+                            'equipment_inspection_id',
+                            $equipmentInspectionId
+                        )
+                        ->whereIn(
+                            'measurement_datetime',
+                            array_keys(
+                                $datetimeList
+                            )
+                        )
+                        ->get();
 
-                    if (
-                        $measurementPoint->location !==
-                        $location
+                    $actualKeys =
+                        [];
+
+                    foreach (
+                        $actualRows as $actual
                     ) {
-                        $measurementPoint->location =
-                            $location;
+                        $key =
+                            $actual->equipment_inspection_id .
+                            '|' .
+                            $actual->measurement_point_id .
+                            '|' .
+                            $actual->measurement_datetime;
 
-                        $changed = true;
+                        if (
+                            isset(
+                                $expectedKeys[$key]
+                            )
+                        ) {
+                            $actualKeys[
+                                $key
+                            ] = true;
+                        }
                     }
 
-                    if (
-                        $measurementPoint->direction !==
-                        $direction
-                    ) {
-                        $measurementPoint->direction =
-                            $direction;
-
-                        $changed = true;
-                    }
-
-                    if (
-                        $measurementPoint->active !== true
-                    ) {
-                        $measurementPoint->active =
-                            true;
-
-                        $changed = true;
-                    }
-
-                    if ($changed) {
-                        $measurementPoint->save();
-                    }
-                }
-
-                $measurementPointCache[
-                    $measurementPointKey
-                ] = $measurementPoint;
-            }
-
-            $measurementPoint =
-                $measurementPointCache[
-                    $measurementPointKey
-                ];
-
-            /*
-            |--------------------------------------------------------------------------
-            | SIMPAN ROW YANG SUDAH RESOLVED
-            |--------------------------------------------------------------------------
-            */
-
-            $preparedRows[] = [
-                'inspection_id' =>
-                    (int) $inspection->id,
-
-                'equipment_inspection_id' =>
-                    $equipmentInspectionId,
-
-                'measurement_point_id' =>
-                    (int) $measurementPoint->id,
-
-                'measurement_datetime' =>
-                    $measurementDatetime,
-
-                'measurement_date' =>
-                    $measurementDate,
-
-                'overall_velocity' =>
-                    $overallVelocity,
-
-                'unit' =>
-                    $data['unit'] ??
-                    'mm/s RMS',
-
-                'peak_value' =>
-                    $data['peak_value'] ??
-                    null,
-
-                'crest_factor' =>
-                    $data['crest_factor'] ??
-                    null,
-            ];
-        }
-
-        unset(
-            $rows,
-            $inspectionCache,
-            $equipmentCache,
-            $equipmentInspectionCache,
-            $measurementPointCache
-        );
-
-        if (empty($preparedRows)) {
-            return [
-                'message' => 'Tidak ada measurement valid yang dapat diimport dari file ODX.',
-                'imported' => 0,
-                'updated' => 0,
-                'total' => 0,
-            ];
-        }
-
-        /*
-        |--------------------------------------------------------------------------
-        | 4. LOAD EXISTING MEASUREMENT RESULTS
-        |--------------------------------------------------------------------------
-        |
-        | Sebelumnya ada query:
-        |
-        | MeasurementResult::where(...)->where(...)->where(...)->first()
-        |
-        | untuk SETIAP row.
-        |
-        | Sekarang existing key diambil secara batch per Equipment Inspection.
-        |--------------------------------------------------------------------------
-        */
-
-        $datetimesByEquipmentInspection = [];
-
-        foreach ($preparedRows as $row) {
-            $equipmentInspectionId =
-                (int) $row['equipment_inspection_id'];
-
-            $datetimesByEquipmentInspection[
-                $equipmentInspectionId
-            ][] =
-                $row['measurement_datetime'];
-        }
-
-        $existingResults = [];
-
-        foreach (
-            $datetimesByEquipmentInspection
-            as $equipmentInspectionId => $datetimes
-        ) {
-            $datetimes =
-                array_values(
-                    array_unique($datetimes)
-                );
-
-            foreach (
-                array_chunk(
-                    $datetimes,
-                    self::IMPORT_BATCH_SIZE
-                ) as $datetimeChunk
-            ) {
-                $query =
-                    DB::table('measurement_results')
-                    ->select([
-                        'id',
-                        'inspection_id',
-                        'equipment_inspection_id',
-                        'measurement_point_id',
-                        'measurement_datetime',
-                    ])
-                    ->where(
-                        'equipment_inspection_id',
-                        $equipmentInspectionId
-                    )
-                    ->whereIn(
-                        'measurement_datetime',
-                        $datetimeChunk
-                    )
-                    ->get();
-
-                foreach ($query as $existing) {
-                    $key =
-                        $this->measurementResultKey(
-                            (int) $existing->equipment_inspection_id,
-                            (int) $existing->measurement_point_id,
-                            (string) $existing->measurement_datetime
+                    $missing =
+                        array_diff_key(
+                            $expectedKeys,
+                            $actualKeys
                         );
 
-                    $existingResults[$key] =
-                        $existing;
+                    if (
+                        !empty($missing)
+                    ) {
+                        throw new RuntimeException(
+                            'ODX integrity verification gagal. ' .
+                            'Equipment inspection ' .
+                            $equipmentInspectionId .
+                            ' kehilangan ' .
+                            count($missing) .
+                            ' measurement. ' .
+                            'Seluruh import di-rollback.'
+                        );
+                    }
+
+                    $verifiedCount +=
+                        count($expectedKeys);
                 }
-            }
-        }
 
-        unset($datetimesByEquipmentInspection);
-
-        /*
-        |--------------------------------------------------------------------------
-        | 5. BUILD INSERT / UPDATE DATA
-        |--------------------------------------------------------------------------
-        |
-        | Inspector sengaja TIDAK disentuh.
-        |--------------------------------------------------------------------------
-        */
-
-        $insertRowsByKey = [];
-        $updateRows = [];
-        $duplicateUpdates = 0;
-
-        $now = now();
-
-        foreach ($preparedRows as $row) {
-            $key =
-                $this->measurementResultKey(
-                    $row['equipment_inspection_id'],
-                    $row['measurement_point_id'],
-                    $row['measurement_datetime']
-                );
-
-            if (isset($existingResults[$key])) {
                 /*
-                | Row memang sudah ada di database.
-                | Setiap kemunculan berikutnya diperlakukan sebagai UPDATE,
-                | sama seperti perilaku importer lama.
+                |--------------------------------------------------------------------------
+                | 13. VERIFY TOTAL
+                |--------------------------------------------------------------------------
                 */
-                $updateRows[] = [
-                    'id' =>
-                        (int) $existingResults[$key]->id,
 
-                    'inspection_id' =>
-                        $row['inspection_id'],
+                if (
+                    $verifiedCount !==
+                    $expectedCount
+                ) {
+                    throw new RuntimeException(
+                        'ODX integrity verification gagal: ' .
+                        'expected ' .
+                        $expectedCount .
+                        ', verified ' .
+                        $verifiedCount .
+                        '. Seluruh import di-rollback.'
+                    );
+                }
 
-                    'equipment_inspection_id' =>
-                        $row['equipment_inspection_id'],
+                /*
+                |--------------------------------------------------------------------------
+                | 14. REFRESH SUMMARY
+                |--------------------------------------------------------------------------
+                */
 
-                    'measurement_point_id' =>
-                        $row['measurement_point_id'],
+                foreach (
+                    array_keys(
+                        $equipmentInspectionIds
+                    ) as $equipmentInspectionId
+                ) {
+                    $this->refreshEquipmentInspectionSummary(
+                        (int) $equipmentInspectionId
+                    );
+                }
 
-                    'measurement_datetime' =>
-                        $row['measurement_datetime'],
+                /*
+                |--------------------------------------------------------------------------
+                | 15. FINAL LOG
+                |--------------------------------------------------------------------------
+                */
 
-                    'measurement_date' =>
-                        $row['measurement_date'],
-
-                    'overall_velocity' =>
-                        $row['overall_velocity'],
-
-                    'unit' =>
-                        $row['unit'],
-
-                    'peak_value' =>
-                        $row['peak_value'],
-
-                    'crest_factor' =>
-                        $row['crest_factor'],
-                ];
-
-                continue;
-            }
-
-            /*
-            | Key yang sama bisa muncul lebih dari sekali
-            | dalam satu file ODX.
-            |
-            | Importer lama:
-            |   row pertama  -> INSERT
-            |   row berikut  -> UPDATE
-            |
-            | Jadi jangan membuat duplicate INSERT.
-            */
-            if (isset($insertRowsByKey[$key])) {
-                $insertRowsByKey[$key] = array_merge(
-                    $insertRowsByKey[$key],
+                Log::info(
+                    'ODX import integrity verified.',
                     [
-                        'overall_velocity' =>
-                            $row['overall_velocity'],
+                        'parser_count' =>
+                            $parserCount,
 
-                        'unit' =>
-                            $row['unit'],
+                        'expected_count' =>
+                            $expectedCount,
 
-                        'peak_value' =>
-                            $row['peak_value'],
+                        'verified_count' =>
+                            $verifiedCount,
 
-                        'crest_factor' =>
-                            $row['crest_factor'],
-
-                        'updated_at' =>
-                            $now,
+                        'equipment_inspections' =>
+                            count(
+                                $equipmentInspectionIds
+                            ),
                     ]
                 );
 
-                $duplicateUpdates++;
-
-                continue;
-            }
-
-            $insertRowsByKey[$key] = [
-                'inspection_id' =>
-                    $row['inspection_id'],
-
-                'equipment_inspection_id' =>
-                    $row['equipment_inspection_id'],
-
-                'measurement_point_id' =>
-                    $row['measurement_point_id'],
-
-                'measurement_datetime' =>
-                    $row['measurement_datetime'],
-
-                'measurement_date' =>
-                    $row['measurement_date'],
-
                 /*
-                | Inspector tetap NULL untuk data baru.
+                |--------------------------------------------------------------------------
+                | 16. COMMIT TERJADI OTOMATIS
+                |--------------------------------------------------------------------------
+                |
+                | Kalau kita sampai sini:
+                |
+                | parser = expected = verified
+                |
+                | DB::transaction() akan COMMIT.
+                |--------------------------------------------------------------------------
                 */
-                'inspector' =>
-                    null,
 
-                'overall_velocity' =>
-                    $row['overall_velocity'],
+                return [
+                    'message' =>
+                        'Import ODX berhasil. ' .
+                        $verifiedCount .
+                        '/' .
+                        $expectedCount .
+                        ' measurement terverifikasi.',
 
-                'unit' =>
-                    $row['unit'],
+                    'imported' =>
+                        $parserCount,
 
-                'peak_value' =>
-                    $row['peak_value'],
+                    'updated' =>
+                        0,
 
-                'crest_factor' =>
-                    $row['crest_factor'],
+                    'total' =>
+                        $expectedCount,
 
-                'created_at' =>
-                    $now,
+                    'parser_count' =>
+                        $parserCount,
 
-                'updated_at' =>
-                    $now,
-            ];
-        }
-
-        unset(
-            $preparedRows,
-            $existingResults
+                    'verified_count' =>
+                        $verifiedCount,
+                ];
+            },
+            3
         );
-
-        $insertRows =
-            array_values(
-                $insertRowsByKey
-            );
-
-        unset($insertRowsByKey);
-
-        /*
-        |--------------------------------------------------------------------------
-        | 6. BULK INSERT
-        |--------------------------------------------------------------------------
-        |
-        | INSERT dilakukan per 500 row agar query tidak terlalu besar.
-        |--------------------------------------------------------------------------
-        */
-
-        $imported = 0;
-
-        foreach (
-            array_chunk(
-                $insertRows,
-                self::IMPORT_BATCH_SIZE
-            ) as $insertChunk
-        ) {
-            DB::transaction(function () use ($insertChunk) {
-                DB::table('measurement_results')
-                    ->insert($insertChunk);
-            });
-
-            $imported += count($insertChunk);
-        }
-
-        unset($insertRows);
-
-        /*
-        |--------------------------------------------------------------------------
-        | 7. UPDATE EXISTING
-        |--------------------------------------------------------------------------
-        |
-        | Update hanya dilakukan untuk row yang memang sudah ada.
-        | Biasanya jauh lebih sedikit daripada INSERT.
-        |--------------------------------------------------------------------------
-        */
-
-        $updated = $duplicateUpdates;
-
-        foreach ($updateRows as $update) {
-            DB::table('measurement_results')
-                ->where('id', $update['id'])
-                ->update([
-                    'inspection_id' =>
-                        $update['inspection_id'],
-
-                    'equipment_inspection_id' =>
-                        $update['equipment_inspection_id'],
-
-                    'measurement_point_id' =>
-                        $update['measurement_point_id'],
-
-                    'measurement_datetime' =>
-                        $update['measurement_datetime'],
-
-                    'measurement_date' =>
-                        $update['measurement_date'],
-
-                    'overall_velocity' =>
-                        $update['overall_velocity'],
-
-                    'unit' =>
-                        $update['unit'],
-
-                    'peak_value' =>
-                        $update['peak_value'],
-
-                    'crest_factor' =>
-                        $update['crest_factor'],
-
-                    'updated_at' =>
-                        now(),
-                ]);
-
-            $updated++;
-        }
-
-        unset($updateRows);
-
-        /*
-        |--------------------------------------------------------------------------
-        | 8. REFRESH EQUIPMENT INSPECTION SUMMARY
-        |--------------------------------------------------------------------------
-        |
-        | Satu kali per equipment inspection, bukan satu kali per measurement.
-        |--------------------------------------------------------------------------
-        */
-
-        foreach (
-            array_keys($equipmentInspectionIds)
-            as $equipmentInspectionId
-        ) {
-            $this->refreshEquipmentInspectionSummary(
-                (int) $equipmentInspectionId
-            );
-        }
-
-        return [
-            'message' =>
-                'Import ODX berhasil.',
-
-            'imported' =>
-                $imported,
-
-            'updated' =>
-                $updated,
-
-            'total' =>
-                $imported + $updated,
-        ];
-    }
-
-    private function measurementResultKey(
-        int $equipmentInspectionId,
-        int $measurementPointId,
-        string $measurementDatetime
-    ): string {
-        return
-            $equipmentInspectionId . '|' .
-            $measurementPointId . '|' .
-            $measurementDatetime;
     }
 
     /*
     |--------------------------------------------------------------------------
-    | PARSE PATH ODX
+    | MEASUREMENT UNIQUE KEY
     |--------------------------------------------------------------------------
     */
 
-    private function parsePath(string $path): array
-    {
-        $parts = preg_split(
-            '/\\\\/',
-            trim($path)
-        );
+    private function measurementKey(
+        array $row
+    ): string {
+        return
+            (int) $row[
+                'equipment_inspection_id'
+            ]
+            . '|'
+            .
+            (int) $row[
+                'measurement_point_id'
+            ]
+            . '|'
+            .
+            (string) $row[
+                'measurement_datetime'
+            ];
+    }
 
-        $parts = array_values(
-            array_filter(
-                $parts,
-                fn ($value) =>
-                    trim($value) !== ''
-            )
-        );
+    /*
+    |--------------------------------------------------------------------------
+    | PARSE PATH
+    |--------------------------------------------------------------------------
+    */
+
+    private function parsePath(
+        string $path
+    ): array {
+        $parts =
+            preg_split(
+                '/\\\\/',
+                trim($path)
+            );
+
+        $parts =
+            array_values(
+                array_filter(
+                    $parts,
+                    fn ($value) =>
+                        trim($value) !== ''
+                )
+            );
 
         return [
             'plant' =>
@@ -961,17 +1099,26 @@ class OdxImportService
         return match (
             substr($pointName, -1)
         ) {
-            'H' => 'Horizontal',
-            'V' => 'Vertical',
-            'A' => 'Axial',
-            'P' => 'PeakVue',
-            default => null,
+            'H' =>
+                'Horizontal',
+
+            'V' =>
+                'Vertical',
+
+            'A' =>
+                'Axial',
+
+            'P' =>
+                'PeakVue',
+
+            default =>
+                null,
         };
     }
 
     /*
     |--------------------------------------------------------------------------
-    | REFRESH EQUIPMENT INSPECTION SUMMARY
+    | REFRESH SUMMARY
     |--------------------------------------------------------------------------
     */
 
@@ -979,66 +1126,77 @@ class OdxImportService
         int $equipmentInspectionId
     ): void {
         $highestMeasurement =
-            DB::table('measurement_results')
-                ->where(
-                    'equipment_inspection_id',
-                    $equipmentInspectionId
-                )
-                ->orderByDesc('overall_velocity')
-                ->orderBy('id')
-                ->first();
+            DB::table(
+                'measurement_results'
+            )
+            ->where(
+                'equipment_inspection_id',
+                $equipmentInspectionId
+            )
+            ->orderByDesc(
+                'overall_velocity'
+            )
+            ->orderBy(
+                'id'
+            )
+            ->first();
 
         if (!$highestMeasurement) {
-            DB::table('equipment_inspections')
-                ->where('id', $equipmentInspectionId)
-                ->update([
-                    'highest_overall' =>
-                        0.00,
+            DB::table(
+                'equipment_inspections'
+            )
+            ->where(
+                'id',
+                $equipmentInspectionId
+            )
+            ->update([
+                'highest_overall' =>
+                    0.00,
 
-                    'highest_point_id' =>
-                        null,
+                'highest_point_id' =>
+                    null,
 
-                    'severity' =>
-                        'Pending',
+                'severity' =>
+                    'Pending',
 
-                    'updated_at' =>
-                        now(),
-                ]);
+                'updated_at' =>
+                    now(),
+            ]);
 
             return;
         }
 
         $highestOverall =
-            (float) $highestMeasurement->overall_velocity;
+            (float)
+            $highestMeasurement->overall_velocity;
 
-        DB::table('equipment_inspections')
-            ->where('id', $equipmentInspectionId)
-            ->update([
-                'highest_overall' =>
-                    $highestOverall,
+        DB::table(
+            'equipment_inspections'
+        )
+        ->where(
+            'id',
+            $equipmentInspectionId
+        )
+        ->update([
+            'highest_overall' =>
+                $highestOverall,
 
-                'highest_point_id' =>
-                    $highestMeasurement->measurement_point_id,
+            'highest_point_id' =>
+                $highestMeasurement->measurement_point_id,
 
-                'severity' =>
-                    $this->determineSeverity(
-                        $highestOverall
-                    ),
+            'severity' =>
+                $this->determineSeverity(
+                    $highestOverall
+                ),
 
-                'updated_at' =>
-                    now(),
-            ]);
+            'updated_at' =>
+                now(),
+        ]);
     }
 
     /*
     |--------------------------------------------------------------------------
-    | SEVERITY - OMNITREND 10816-3 PROFILE
-    |--------------------------------------------------------------------------
-    |
-    | < 2.80      Normal
-    | < 4.50      Alert
-    | < 7.10      Danger
-    | >= 7.10     Critical
+    | SEVERITY
     |--------------------------------------------------------------------------
     */
 
@@ -1053,21 +1211,27 @@ class OdxImportService
     ): string {
         if (
             $overall <
-            self::OMNITREND_10816_3_LIMITS['normal_max']
+            self::OMNITREND_10816_3_LIMITS[
+                'normal_max'
+            ]
         ) {
             return 'Normal';
         }
 
         if (
             $overall <
-            self::OMNITREND_10816_3_LIMITS['alert_max']
+            self::OMNITREND_10816_3_LIMITS[
+                'alert_max'
+            ]
         ) {
             return 'Alert';
         }
 
         if (
             $overall <
-            self::OMNITREND_10816_3_LIMITS['danger_max']
+            self::OMNITREND_10816_3_LIMITS[
+                'danger_max'
+            ]
         ) {
             return 'Danger';
         }
