@@ -172,17 +172,24 @@ document.addEventListener('DOMContentLoaded', () => {
                     .json()
                     .catch(() => ({}));
 
-            if (!importResponse.ok) {
-                throw new Error(
-                    importData.message ||
-                    'Import ODX gagal.'
-                );
-            }
+            const importSummary = [
+    importData.message || 'Import ODX berhasil.',
+    `Imported: ${importData.imported ?? 0}`,
+    `Updated: ${importData.updated ?? 0}`,
+    `Total: ${importData.total ?? 0}`,
+].join(' | ');
 
-            showStatus(
-                importData.message ||
-                'Import ODX berhasil.',
-                'success'
+showStatus(
+    importSummary,
+    'success'
+);
+
+fileInput.value = '';
+progress.classList.add('hidden');
+
+setTimeout(() => {
+    window.location.reload();
+}, 4000);
             );
 
             fileInput.value = '';
