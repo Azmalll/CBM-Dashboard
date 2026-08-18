@@ -774,16 +774,12 @@
 
                             <td class="px-5 py-4">
 
-                                <span class="font-bold text-[#0F2D5C]">
-                                    {{ number_format((float) $highestVibration->overall_velocity, 2) }}
-                                </span>
-
-                                <span class="text-gray-500 text-sm">
-                                    mm/s RMS
-                                </span>
-
-                                <span class="block text-gray-400 text-xs mt-1">
-                                    {{ number_format((float) $highestVibration->overall_velocity / 25.4, 3) }} inch/s RMS
+                                <span
+                                    class="font-bold text-[#0F2D5C]"
+                                    data-vibration-value="{{ $highestVibration->overall_velocity }}"
+                                    data-vibration-unit="mm/s RMS"
+                                >
+                                    {{ number_format((float) $highestVibration->overall_velocity, 2) }} mm/s RMS
                                 </span>
 
                             </td>
@@ -816,6 +812,7 @@
         @endif
 
     </div>
+
 
 
     {{-- ========================================================= --}}
@@ -920,8 +917,12 @@
 
                                             @if($condition['overall_velocity'] !== null)
                                                 <p class="text-sm text-gray-500 mt-1 ml-4">
-                                                    {{ number_format((float) $condition['overall_velocity'], 2) }} mm/s RMS
-                                                    · {{ number_format((float) $condition['overall_velocity'] / 25.4, 3) }} inch/s RMS
+                                                    <span
+                                                        data-vibration-value="{{ $condition['overall_velocity'] }}"
+                                                        data-vibration-unit="mm/s RMS"
+                                                    >
+                                                        {{ number_format((float) $condition['overall_velocity'], 2) }} mm/s RMS
+                                                    </span>
 
                                                     @if($condition['measurement_point'])
                                                         · {{ $condition['measurement_point']->point_name }}
@@ -1872,20 +1873,56 @@ function formatNumber(value, decimals = 2) {
 
 /*
 |--------------------------------------------------------------------------
-| Velocity Unit Helpers
+| VIBRATION DISPLAY UNIT
 |--------------------------------------------------------------------------
-| Database/ODX may contain either mm/s RMS or inch/s RMS.
-| The UI always shows BOTH units without changing the stored value.
+|
+| Raw value from database / ODX remains unchanged.
+| The database value is treated as the source value and is converted
+| only for UI display.
+|
+| Display unit is shared across the whole dashboard:
+| - Vibration Trend
+| - Current / Previous
+| - Highest Vibration
+| - Equipment Condition by Area
+| - Equipment Measurement Detail
 |
 | 1 inch/s = 25.4 mm/s
 |--------------------------------------------------------------------------
 */
+
+const VIBRATION_UNIT_STORAGE_KEY =
+    'cbm_vibration_display_unit';
+
+
+let vibrationDisplayUnit =
+    localStorage.getItem(
+        VIBRATION_UNIT_STORAGE_KEY
+    );
+
+
+if (
+    vibrationDisplayUnit !== 'mm/s RMS' &&
+    vibrationDisplayUnit !== 'inch/s RMS'
+) {
+    vibrationDisplayUnit = 'mm/s RMS';
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| VELOCITY UNIT HELPERS
+|--------------------------------------------------------------------------
+*/
+
 function normalizeVelocityUnit(unit) {
+
     const raw = String(unit || 'mm/s RMS')
         .trim()
         .toLowerCase()
         .replace(/\\/g, '')
         .replace(/\s+/g, ' ');
+
 
     if (
         raw.includes('inch/s') ||
@@ -1897,57 +1934,200 @@ function normalizeVelocityUnit(unit) {
         return 'inch';
     }
 
+
     return 'mm';
 }
 
+
 function velocityToMm(value, unit) {
+
     const number = Number(value);
 
     if (!Number.isFinite(number)) {
         return null;
     }
+
 
     return normalizeVelocityUnit(unit) === 'inch'
         ? number * 25.4
         : number;
 }
 
+
 function velocityToInch(value, unit) {
+
     const number = Number(value);
 
     if (!Number.isFinite(number)) {
         return null;
     }
 
+
     return normalizeVelocityUnit(unit) === 'inch'
         ? number
         : number / 25.4;
 }
 
-function formatVelocityPair(value, unit = 'mm/s RMS') {
-    const mm = velocityToMm(value, unit);
-    const inch = velocityToInch(value, unit);
 
-    if (mm === null || inch === null) {
+function convertVibrationValue(value, sourceUnit = 'mm/s RMS') {
+
+    const mm = velocityToMm(
+        value,
+        sourceUnit
+    );
+
+
+    if (mm === null) {
+        return null;
+    }
+
+
+    return vibrationDisplayUnit === 'inch/s RMS'
+        ? mm / 25.4
+        : mm;
+}
+
+
+function formatVibrationValue(
+    value,
+    sourceUnit = 'mm/s RMS'
+) {
+
+    const convertedValue =
+        convertVibrationValue(
+            value,
+            sourceUnit
+        );
+
+
+    if (convertedValue === null) {
         return '-';
     }
 
-    return `
-        <span class="block">${mm.toFixed(2)} mm/s RMS</span>
-        <span class="block text-gray-400 text-xs mt-0.5">${inch.toFixed(3)} inch/s RMS</span>
-    `;
+
+    return (
+        convertedValue.toFixed(2) +
+        ' ' +
+        vibrationDisplayUnit
+    );
 }
 
-function formatVelocityInline(value, unit = 'mm/s RMS') {
-    const mm = velocityToMm(value, unit);
-    const inch = velocityToInch(value, unit);
 
-    if (mm === null || inch === null) {
-        return '-';
+function formatVelocityPair(
+    value,
+    unit = 'mm/s RMS'
+) {
+
+    return formatVibrationValue(
+        value,
+        unit
+    );
+}
+
+
+function formatVelocityInline(
+    value,
+    unit = 'mm/s RMS'
+) {
+
+    return formatVibrationValue(
+        value,
+        unit
+    );
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| UPDATE ALL DASHBOARD VIBRATION VALUES
+|--------------------------------------------------------------------------
+*/
+
+function updateAllVibrationDisplays() {
+
+    document
+        .querySelectorAll('[data-vibration-value]')
+        .forEach(function (element) {
+
+            const value =
+                element.dataset.vibrationValue;
+
+            const sourceUnit =
+                element.dataset.vibrationUnit ||
+                'mm/s RMS';
+
+
+            element.textContent =
+                formatVibrationValue(
+                    value,
+                    sourceUnit
+                );
+
+        });
+
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| CHANGE DISPLAY UNIT
+|--------------------------------------------------------------------------
+*/
+
+function setVibrationDisplayUnit(unit) {
+
+    if (
+        unit !== 'mm/s RMS' &&
+        unit !== 'inch/s RMS'
+    ) {
+        return;
     }
 
-    return `${mm.toFixed(2)} mm/s RMS · ${inch.toFixed(3)} inch/s RMS`;
+
+    vibrationDisplayUnit =
+        unit;
+
+
+    localStorage.setItem(
+        VIBRATION_UNIT_STORAGE_KEY,
+        vibrationDisplayUnit
+    );
+
+
+    /*
+    | Update every display that uses the shared
+    | vibration unit. Chart-specific functions are
+    | called only when they exist.
+    */
+
+    updateAllVibrationDisplays();
+
+
+    if (typeof updateVibrationUnitUI === 'function') {
+        updateVibrationUnitUI();
+    }
+
+
+    if (typeof updateTrendSummary === 'function') {
+        updateTrendSummary();
+    }
+
+
+    if (typeof updateVibrationChart === 'function') {
+        updateVibrationChart();
+    }
+
 }
+
+
+/*
+|--------------------------------------------------------------------------
+| INITIALIZE STATIC DASHBOARD VIBRATION VALUES
+|--------------------------------------------------------------------------
+*/
+
+updateAllVibrationDisplays();
+
 
 function formatDateOnly(value) {
     if (!value) {
@@ -2031,26 +2211,6 @@ document.addEventListener('keydown', function (event) {
 
         /*
         |--------------------------------------------------------------------------
-        | VIBRATION DISPLAY UNIT
-        |--------------------------------------------------------------------------
-        |
-        | Raw value from database / ODX remains mm/s RMS.
-        | Conversion is only performed for UI display.
-        |
-        */
-
-        const VIBRATION_UNIT_STORAGE_KEY =
-            'cbm_vibration_display_unit';
-
-
-        let vibrationDisplayUnit =
-            localStorage.getItem(
-                VIBRATION_UNIT_STORAGE_KEY
-            ) || 'mm/s RMS';
-
-
-        /*
-        |--------------------------------------------------------------------------
         | RAW TREND DATA
         |--------------------------------------------------------------------------
         */
@@ -2072,49 +2232,6 @@ document.addEventListener('keydown', function (event) {
         */
 
         let dashboardVibrationChart = null;
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | UNIT CONVERSION
-        |--------------------------------------------------------------------------
-        */
-
-        function convertVibrationValue(value) {
-
-            const numericValue =
-                Number(value);
-
-            if (!Number.isFinite(numericValue)) {
-                return null;
-            }
-
-            if (
-                vibrationDisplayUnit ===
-                'inch/s RMS'
-            ) {
-                return numericValue / 25.4;
-            }
-
-            return numericValue;
-        }
-
-
-        function formatVibrationValue(value) {
-
-            const convertedValue =
-                convertVibrationValue(value);
-
-            if (convertedValue === null) {
-                return '-';
-            }
-
-            return (
-                convertedValue.toFixed(2) +
-                ' ' +
-                vibrationDisplayUnit
-            );
-        }
 
 
         /*
@@ -2287,41 +2404,6 @@ document.addEventListener('keydown', function (event) {
 
 
             dashboardVibrationChart.update();
-
-        }
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | CHANGE DISPLAY UNIT
-        |--------------------------------------------------------------------------
-        */
-
-        function setVibrationDisplayUnit(unit) {
-
-            if (
-                unit !== 'mm/s RMS' &&
-                unit !== 'inch/s RMS'
-            ) {
-                return;
-            }
-
-
-            vibrationDisplayUnit =
-                unit;
-
-
-            localStorage.setItem(
-                VIBRATION_UNIT_STORAGE_KEY,
-                vibrationDisplayUnit
-            );
-
-
-            updateVibrationUnitUI();
-
-            updateTrendSummary();
-
-            updateVibrationChart();
 
         }
 
