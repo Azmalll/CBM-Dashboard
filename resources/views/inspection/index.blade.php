@@ -62,10 +62,6 @@
                     </th>
 
                     <th class="px-6 py-4 text-left">
-                        Inspector
-                    </th>
-
-                    <th class="px-6 py-4 text-left">
                         Remarks
                     </th>
 
@@ -94,14 +90,6 @@
                             {{ $inspection->inspection_date }}
 
                         </td>
-
-
-                        <td class="px-6 py-4">
-
-                            {{ $inspection->inspector }}
-
-                        </td>
-
 
                         <td class="px-6 py-4">
 

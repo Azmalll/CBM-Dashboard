@@ -16,16 +16,6 @@
                 Vibration measurement data
             </p>
         </div>
-
-        <a
-            href="{{ route('dashboard') }}"
-            class="inline-flex items-center justify-center
-                   bg-gray-200 hover:bg-gray-300
-                   text-gray-700 font-semibold
-                   px-5 py-3 rounded-xl transition"
-        >
-            ← Main Menu
-        </a>
     </div>
 
     {{-- SUCCESS MESSAGE --}}

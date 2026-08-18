@@ -1039,21 +1039,36 @@
                             @endif
 
                             <button
-                                type="button"
-                                id="analysisReportButton"
-                                onclick="handleAnalysisReport()"
-                                class="px-4 py-2 rounded-lg bg-[#0F2D5C] text-white hover:bg-blue-900 text-sm font-medium{{ auth()->user()?->isAdmin() ? '' : ' hidden' }}"
-                            >
-                                📄 Analysis Report
-                            </button>
+    type="button"
+    id="analysisReportButton"
+    onclick="handleAnalysisReport()"
+    class="px-4 py-2 rounded-lg bg-[#0F2D5C] text-white hover:bg-blue-900 text-sm font-medium"
+>
+    📄 Analysis Report
+</button>
 
-                            <button
-                                type="button"
-                                onclick="backToEquipmentHistory()"
-                                class="px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50 text-sm font-medium"
-                            >
-                                ← Back
-                            </button>
+@if(auth()->user()?->isAdmin())
+    <button
+        type="button"
+        id="editAnalysisReportButton"
+        onclick="editAnalysisReport()"
+        class="hidden px-4 py-2 rounded-lg border border-[#0F2D5C]
+               text-[#0F2D5C] hover:bg-blue-50
+               text-sm font-medium"
+    >
+        ✏️ Edit Analysis Report
+    </button>
+@endif
+
+<button
+    type="button"
+    onclick="backToEquipmentHistory()"
+    class="px-4 py-2 rounded-lg border border-gray-300
+           text-gray-700 hover:bg-gray-50
+           text-sm font-medium"
+>
+    ← Back
+</button>
                         </div>
                     </div>
 
@@ -1451,32 +1466,127 @@ function openInspectionDetail(historyIndex) {
 }
 
 function updateAnalysisReportButton(session) {
-    const button = document.getElementById('analysisReportButton');
+    const button =
+        document.getElementById('analysisReportButton');
+
+    const editButton =
+        document.getElementById('editAnalysisReportButton');
 
     if (!button) {
         return;
     }
 
-    const hasReport = !!session?.reportFile;
+    const hasReport =
+        !!session?.reportFile;
 
-    // Viewer: hide the button when no report exists.
-    // Viewer may only open an existing report.
-    if (!currentUserIsAdmin && !hasReport) {
-        button.classList.add('hidden');
+
+    /*
+    |--------------------------------------------------------------------------
+    | ADMIN
+    |--------------------------------------------------------------------------
+    */
+
+    if (currentUserIsAdmin) {
+
+        button.classList.remove('hidden');
+
+        button.disabled = false;
+
+        button.classList.remove(
+            'opacity-50',
+            'cursor-not-allowed'
+        );
+
+
+        if (hasReport) {
+
+            // View existing report
+            button.innerHTML =
+                '📄 View Analysis Report';
+
+            button.title =
+                'Open analysis report';
+
+
+            // Show Edit button
+            if (editButton) {
+                editButton.classList.remove('hidden');
+            }
+
+        } else {
+
+            // No report yet → Upload
+            button.innerHTML =
+                '📤 Upload Analysis Report';
+
+            button.title =
+                'Upload Analysis Report untuk equipment inspection ini';
+
+
+            // Hide Edit button
+            if (editButton) {
+                editButton.classList.add('hidden');
+            }
+        }
+
         return;
     }
 
+
+    /*
+    |--------------------------------------------------------------------------
+    | VIEWER
+    |--------------------------------------------------------------------------
+    */
+
+    // Viewer never gets Edit button
+    if (editButton) {
+        editButton.classList.add('hidden');
+    }
+
+
+    if (hasReport) {
+
+        // Viewer can open existing report
+        button.classList.remove('hidden');
+
+        button.disabled = false;
+
+        button.classList.remove(
+            'opacity-50',
+            'cursor-not-allowed'
+        );
+
+        button.innerHTML =
+            '📄 View Analysis Report';
+
+        button.title =
+            'Open analysis report';
+
+        return;
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | VIEWER - REPORT PENDING
+    |--------------------------------------------------------------------------
+    */
+
     button.classList.remove('hidden');
-    button.disabled = false;
-    button.classList.remove('opacity-50', 'cursor-not-allowed');
 
-    button.innerHTML = hasReport
-        ? '📄 View Analysis Report'
-        : '📄 Upload Analysis Report';
+    button.disabled = true;
 
-    button.title = hasReport
-        ? 'Open analysis report'
-        : 'Upload analysis report untuk equipment measurement ini';
+    button.classList.add(
+        'opacity-50',
+        'cursor-not-allowed'
+    );
+
+    button.innerHTML =
+        '⏳ Analysis Report Pending';
+
+    button.title =
+        'Analysis Report belum tersedia';
 }
 function handleAnalysisReport() {
     if (
@@ -1632,7 +1742,36 @@ async function uploadAnalysisReport(input) {
         }
     }
 }
+function editAnalysisReport() {
+    if (!currentUserIsAdmin) {
+        return;
+    }
 
+    if (
+        !activeEquipmentData ||
+        activeHistoryIndex === null ||
+        activeHistoryIndex === undefined
+    ) {
+        return;
+    }
+
+    const session =
+        activeEquipmentData.history[activeHistoryIndex];
+
+    if (!session) {
+        return;
+    }
+
+    const input =
+        document.getElementById('analysisReportInput');
+
+    if (!input) {
+        return;
+    }
+
+    input.value = '';
+    input.click();
+}
 function backToEquipmentHistory() {
     activeHistoryIndex = null;
     renderEquipmentHistory();
