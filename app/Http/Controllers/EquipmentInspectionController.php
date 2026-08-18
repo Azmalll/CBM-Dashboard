@@ -63,6 +63,12 @@ class EquipmentInspectionController extends Controller
         EquipmentInspection $equipmentInspection
     ) {
         $validated = $request->validate([
+            'highest_overall' => [
+                'required',
+                'numeric',
+                'min:0',
+            ],
+
             'highest_point_id' => [
                 'nullable',
                 'exists:measurement_points,id'
@@ -71,7 +77,7 @@ class EquipmentInspectionController extends Controller
             'severity' => [
                 'required',
                 'string',
-                'in:Normal,Alert,Alarm,Critical'
+                'in:Normal,Alert,Danger,Critical'
             ],
 
             'diagnosis' => [
@@ -92,6 +98,9 @@ class EquipmentInspectionController extends Controller
             ],
         ]);
 
+
+        $equipmentInspection->highest_overall =
+            $validated['highest_overall'];
 
         $equipmentInspection->highest_point_id =
             $validated['highest_point_id'] ?? null;
@@ -152,6 +161,126 @@ class EquipmentInspectionController extends Controller
 
 
     /**
+     * Show operating parameters edit form.
+     *
+     * Admin only through route middleware.
+     */
+    public function editOperatingParameters(
+        EquipmentInspection $equipmentInspection
+    ) {
+        $equipmentInspection->load([
+            'inspection',
+            'equipment',
+        ]);
+
+        return view(
+            'equipment-inspection.operating-parameters',
+            compact('equipmentInspection')
+        );
+    }
+
+
+    /**
+     * Update operating parameters.
+     *
+     * Admin only through route middleware.
+     */
+    public function updateOperatingParameters(
+        Request $request,
+        EquipmentInspection $equipmentInspection
+    ) {
+        $validated = $request->validate([
+
+            'speed_rpm' => [
+                'nullable',
+                'numeric',
+                'min:0',
+            ],
+
+            'suction_pressure' => [
+                'nullable',
+                'numeric',
+            ],
+
+            'discharge_pressure' => [
+                'nullable',
+                'numeric',
+            ],
+
+            'bearing_temp_m_out' => [
+                'nullable',
+                'numeric',
+            ],
+
+            'bearing_temp_m_in' => [
+                'nullable',
+                'numeric',
+            ],
+
+            'bearing_temp_p_in' => [
+                'nullable',
+                'numeric',
+            ],
+
+            'bearing_temp_p_out' => [
+                'nullable',
+                'numeric',
+            ],
+
+            'flow_rate' => [
+                'nullable',
+                'numeric',
+                'min:0',
+            ],
+
+        ]);
+
+
+        $equipmentInspection->operating_parameters = [
+
+            'speed_rpm' =>
+                $validated['speed_rpm'] ?? null,
+
+            'suction_pressure' =>
+                $validated['suction_pressure'] ?? null,
+
+            'discharge_pressure' =>
+                $validated['discharge_pressure'] ?? null,
+
+            'bearing_temp_m_out' =>
+                $validated['bearing_temp_m_out'] ?? null,
+
+            'bearing_temp_m_in' =>
+                $validated['bearing_temp_m_in'] ?? null,
+
+            'bearing_temp_p_in' =>
+                $validated['bearing_temp_p_in'] ?? null,
+
+            'bearing_temp_p_out' =>
+                $validated['bearing_temp_p_out'] ?? null,
+
+            'flow_rate' =>
+                $validated['flow_rate'] ?? null,
+
+        ];
+
+
+        $equipmentInspection->save();
+
+
+        return redirect()
+            ->route(
+                'equipment-inspection.show',
+                $equipmentInspection->id
+            )
+            ->with(
+                'success',
+                'Operating Parameters berhasil diperbarui.'
+            );
+    }
+
+
+    /**
      * Display uploaded report PDF.
      */
     public function report(EquipmentInspection $equipmentInspection)
@@ -170,7 +299,8 @@ class EquipmentInspectionController extends Controller
             $disk->path($equipmentInspection->report_file),
             [
                 'Content-Type' => 'application/pdf',
-                'Content-Disposition' => 'inline; filename="inspection-report.pdf"',
+                'Content-Disposition' =>
+                    'inline; filename="inspection-report.pdf"',
             ]
         );
     }
@@ -178,35 +308,16 @@ class EquipmentInspectionController extends Controller
 
     /**
      * Display vibration trend.
-     *
-     * Features:
-     * - Measurement point filter
-     * - Period filter
-     * - Overall vibration trend
-     * - Measurement history
-     * - Severity and diagnosis history
      */
     public function trend(
         Request $request,
         EquipmentInspection $equipmentInspection
     ) {
-        /*
-        |--------------------------------------------------------------------------
-        | Current Equipment
-        |--------------------------------------------------------------------------
-        */
-
         $equipmentInspection->load([
             'inspection',
             'equipment',
         ]);
 
-
-        /*
-        |--------------------------------------------------------------------------
-        | Measurement Point
-        |--------------------------------------------------------------------------
-        */
 
         $measurementPoints = MeasurementPoint::where(
                 'equipment_id',
@@ -217,31 +328,29 @@ class EquipmentInspectionController extends Controller
             ->get();
 
 
-        /*
-        |--------------------------------------------------------------------------
-        | Selected Measurement Point
-        |--------------------------------------------------------------------------
-        */
-
-        $selectedPointId = $request->input('measurement_point_id');
+        $selectedPointId =
+            $request->input('measurement_point_id');
 
 
-        if (!$selectedPointId && $measurementPoints->count()) {
-            $selectedPointId = $measurementPoints->first()->id;
+        if (
+            !$selectedPointId &&
+            $measurementPoints->count()
+        ) {
+            $selectedPointId =
+                $measurementPoints->first()->id;
         }
 
 
-        $selectedPoint = $measurementPoints
-            ->firstWhere('id', (int) $selectedPointId);
+        $selectedPoint =
+            $measurementPoints->firstWhere(
+                'id',
+                (int) $selectedPointId
+            );
 
 
-        /*
-        |--------------------------------------------------------------------------
-        | Period Filter
-        |--------------------------------------------------------------------------
-        */
+        $period =
+            $request->input('period', 'all');
 
-        $period = $request->input('period', 'all');
 
         $allowedPeriods = [
             '7',
@@ -251,38 +360,28 @@ class EquipmentInspectionController extends Controller
             'all',
         ];
 
+
         if (!in_array($period, $allowedPeriods)) {
             $period = 'all';
         }
 
 
-        /*
-        |--------------------------------------------------------------------------
-        | Historical Equipment Inspections
-        |--------------------------------------------------------------------------
-        */
+        $inspectionsQuery =
+            EquipmentInspection::query()
+                ->where(
+                    'equipment_id',
+                    $equipmentInspection->equipment_id
+                )
+                ->with([
+                    'inspection',
+                    'measurementResults.measurementPoint',
+                ]);
 
-        $inspectionsQuery = EquipmentInspection::query()
-            ->where(
-                'equipment_id',
-                $equipmentInspection->equipment_id
-            )
-            ->with([
-                'inspection',
-                'measurementResults.measurementPoint',
-            ]);
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | Date Filter
-        |--------------------------------------------------------------------------
-        */
 
         if ($period !== 'all') {
 
-            $startDate = now()
-                ->subDays((int) $period);
+            $startDate =
+                now()->subDays((int) $period);
 
             $inspectionsQuery->whereHas(
                 'inspection',
@@ -298,28 +397,18 @@ class EquipmentInspectionController extends Controller
         }
 
 
-        /*
-        |--------------------------------------------------------------------------
-        | Get Inspections
-        |--------------------------------------------------------------------------
-        */
+        $historicalInspections =
+            $inspectionsQuery
+                ->get()
+                ->sortBy(function ($inspection) {
 
-        $historicalInspections = $inspectionsQuery
-            ->get()
-            ->sortBy(function ($inspection) {
+                    return optional(
+                        $inspection->inspection
+                    )->inspection_date;
 
-                return optional(
-                    $inspection->inspection
-                )->inspection_date;
-            })
-            ->values();
+                })
+                ->values();
 
-
-        /*
-        |--------------------------------------------------------------------------
-        | Build Trend Data
-        |--------------------------------------------------------------------------
-        */
 
         $trendResults = collect();
 
@@ -331,12 +420,13 @@ class EquipmentInspectionController extends Controller
             }
 
 
-            $result = $inspection
-                ->measurementResults
-                ->firstWhere(
-                    'measurement_point_id',
-                    (int) $selectedPointId
-                );
+            $result =
+                $inspection
+                    ->measurementResults
+                    ->firstWhere(
+                        'measurement_point_id',
+                        (int) $selectedPointId
+                    );
 
 
             if (!$result) {
@@ -345,79 +435,79 @@ class EquipmentInspectionController extends Controller
 
 
             $trendResults->push([
-                'date' => optional(
-                    $inspection->inspection
-                )->inspection_date,
 
-                'overall' => (float) $result->overall_velocity,
+                'date' =>
+                    optional(
+                        $inspection->inspection
+                    )->inspection_date,
 
-                'peak' => $result->peak_value !== null
-                    ? (float) $result->peak_value
-                    : null,
+                'overall' =>
+                    (float) $result->overall_velocity,
 
-                'crest_factor' => $result->crest_factor !== null
-                    ? (float) $result->crest_factor
-                    : null,
+                'peak' =>
+                    $result->peak_value !== null
+                        ? (float) $result->peak_value
+                        : null,
 
-                'severity' => $inspection->severity,
+                'crest_factor' =>
+                    $result->crest_factor !== null
+                        ? (float) $result->crest_factor
+                        : null,
 
-                'diagnosis' => $inspection->diagnosis,
+                'severity' =>
+                    $inspection->severity,
+
+                'diagnosis' =>
+                    $inspection->diagnosis,
+
             ]);
         }
 
 
-        /*
-        |--------------------------------------------------------------------------
-        | Summary
-        |--------------------------------------------------------------------------
-        */
-
-        $latestResult = $trendResults->last();
-
-        $latestOverall = $latestResult
-            ? $latestResult['overall']
-            : 0;
-
-        $highestOverall = $trendResults->max('overall') ?? 0;
-
-        $totalMeasurements = $trendResults->count();
+        $latestResult =
+            $trendResults->last();
 
 
-        /*
-        |--------------------------------------------------------------------------
-        | Chart Data
-        |--------------------------------------------------------------------------
-        */
-
-        $trendLabels = $trendResults
-            ->map(function ($item) {
-
-                if (!$item['date']) {
-                    return '-';
-                }
-
-                return \Carbon\Carbon::parse(
-                    $item['date']
-                )->format('d M Y');
-
-            })
-            ->values();
+        $latestOverall =
+            $latestResult
+                ? $latestResult['overall']
+                : 0;
 
 
-        $trendValues = $trendResults
-            ->pluck('overall')
-            ->values();
+        $highestOverall =
+            $trendResults->max('overall') ?? 0;
 
 
-        /*
-        |--------------------------------------------------------------------------
-        | Diagnosis Trend
-        |--------------------------------------------------------------------------
-        */
+        $totalMeasurements =
+            $trendResults->count();
 
-        $diagnosisTrend = $trendResults
-            ->reverse()
-            ->values();
+
+        $trendLabels =
+            $trendResults
+                ->map(function ($item) {
+
+                    if (!$item['date']) {
+                        return '-';
+                    }
+
+                    return \Carbon\Carbon::parse(
+                        $item['date']
+                    )->format('d M Y');
+
+                })
+                ->values();
+
+
+        $trendValues =
+            $trendResults
+                ->pluck('overall')
+                ->values();
+
+
+        $diagnosisTrend =
+            $trendResults
+                ->reverse()
+                ->values();
 
 
         return view(

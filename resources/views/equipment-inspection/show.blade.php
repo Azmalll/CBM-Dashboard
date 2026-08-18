@@ -137,6 +137,220 @@
     </div>
 
 
+        {{-- =====================================================
+         OPERATING PARAMETERS
+    ====================================================== --}}
+
+    @php
+        $operatingParameters =
+            $equipmentInspection->operating_parameters ?? [];
+    @endphp
+
+    <div class="bg-white rounded-2xl shadow-sm p-8">
+
+        <div class="flex flex-col md:flex-row
+                    md:items-center md:justify-between gap-4 mb-6">
+
+            <div>
+
+                <h2 class="text-2xl font-bold text-[#0F2D5C]">
+                    Operating Parameters
+                </h2>
+
+                <p class="text-gray-500 mt-1">
+                    Operating condition during measurement
+                </p>
+
+            </div>
+
+
+            {{-- ADMIN ONLY --}}
+            @if(auth()->user()->role === 'admin')
+
+                <a
+                    href="{{ route(
+                        'equipment-inspection.operating-parameters.edit',
+                        $equipmentInspection->id
+                    ) }}"
+                    class="bg-white border border-[#0F2D5C]
+                           text-[#0F2D5C] hover:bg-blue-50
+                           px-5 py-3 rounded-xl font-semibold"
+                >
+                    Edit Operating Parameters
+                </a>
+
+            @endif
+
+        </div>
+
+
+        <div class="grid grid-cols-1 md:grid-cols-2
+                    lg:grid-cols-4 gap-6">
+
+            {{-- SPEED --}}
+            <div>
+
+                <p class="text-gray-500">
+                    Speed
+                </p>
+
+                <p class="text-xl font-semibold">
+
+                    {{ $operatingParameters['speed_rpm'] ?? '-' }}
+
+                    <span class="text-sm font-normal text-gray-500">
+                        RPM
+                    </span>
+
+                </p>
+
+            </div>
+
+
+            {{-- SUCTION --}}
+            <div>
+
+                <p class="text-gray-500">
+                    Suction Pressure
+                </p>
+
+                <p class="text-xl font-semibold">
+
+                    {{ $operatingParameters['suction_pressure'] ?? '-' }}
+
+                    <span class="text-sm font-normal text-gray-500">
+                        Psi
+                    </span>
+
+                </p>
+
+            </div>
+
+
+            {{-- DISCHARGE --}}
+            <div>
+
+                <p class="text-gray-500">
+                    Discharge Pressure
+                </p>
+
+                <p class="text-xl font-semibold">
+
+                    {{ $operatingParameters['discharge_pressure'] ?? '-' }}
+
+                    <span class="text-sm font-normal text-gray-500">
+                        Psi
+                    </span>
+
+                </p>
+
+            </div>
+
+
+            {{-- FLOW --}}
+            <div>
+
+                <p class="text-gray-500">
+                    Flow Rate
+                </p>
+
+                <p class="text-xl font-semibold">
+
+                    {{ $operatingParameters['flow_rate'] ?? '-' }}
+
+                    <span class="text-sm font-normal text-gray-500">
+                        USGPM
+                    </span>
+
+                </p>
+
+            </div>
+
+
+            {{-- M OUT --}}
+            <div>
+
+                <p class="text-gray-500">
+                    Bearing Temp M-Out
+                </p>
+
+                <p class="text-xl font-semibold">
+
+                    {{ $operatingParameters['bearing_temp_m_out'] ?? '-' }}
+
+                    <span class="text-sm font-normal text-gray-500">
+                        °C
+                    </span>
+
+                </p>
+
+            </div>
+
+
+            {{-- M IN --}}
+            <div>
+
+                <p class="text-gray-500">
+                    Bearing Temp M-In
+                </p>
+
+                <p class="text-xl font-semibold">
+
+                    {{ $operatingParameters['bearing_temp_m_in'] ?? '-' }}
+
+                    <span class="text-sm font-normal text-gray-500">
+                        °C
+                    </span>
+
+                </p>
+
+            </div>
+
+
+            {{-- P IN --}}
+            <div>
+
+                <p class="text-gray-500">
+                    Bearing Temp P-In
+                </p>
+
+                <p class="text-xl font-semibold">
+
+                    {{ $operatingParameters['bearing_temp_p_in'] ?? '-' }}
+
+                    <span class="text-sm font-normal text-gray-500">
+                        °C
+                    </span>
+
+                </p>
+
+            </div>
+
+
+            {{-- P OUT --}}
+            <div>
+
+                <p class="text-gray-500">
+                    Bearing Temp P-Out
+                </p>
+
+                <p class="text-xl font-semibold">
+
+                    {{ $operatingParameters['bearing_temp_p_out'] ?? '-' }}
+
+                    <span class="text-sm font-normal text-gray-500">
+                        °C
+                    </span>
+
+                </p>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    
     {{-- =====================================================
          ANALYSIS SUMMARY
     ====================================================== --}}

@@ -17,6 +17,11 @@ class EquipmentInspection extends Model
         'diagnosis',
         'recommendation',
         'report_file',
+        'operating_parameters',
+    ];
+
+    protected $casts = [
+        'operating_parameters' => 'array',
     ];
 
     public function inspection(): BelongsTo

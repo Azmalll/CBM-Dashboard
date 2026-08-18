@@ -241,6 +241,28 @@ Route::middleware('auth')->group(function () {
 
 
     /*
+|--------------------------------------------------------------------------
+| OPERATING PARAMETERS - EDIT
+|--------------------------------------------------------------------------
+*/
+
+Route::get(
+    '/equipment-inspection/{equipmentInspection}/operating-parameters/edit',
+    [EquipmentInspectionController::class, 'editOperatingParameters']
+)
+    ->middleware(RoleMiddleware::class . ':admin')
+    ->name('equipment-inspection.operating-parameters.edit');
+
+
+Route::put(
+    '/equipment-inspection/{equipmentInspection}/operating-parameters',
+    [EquipmentInspectionController::class, 'updateOperatingParameters']
+)
+    ->middleware(RoleMiddleware::class . ':admin')
+    ->name('equipment-inspection.operating-parameters.update');        
+    /*
+
+    
     |--------------------------------------------------------------------------
     | ADD MEASUREMENT
     |--------------------------------------------------------------------------
