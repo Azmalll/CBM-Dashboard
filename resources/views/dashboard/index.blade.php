@@ -425,27 +425,27 @@
 
     </div>
 
+{{-- ========================================================= --}}
+{{-- VIBRATION TREND --}}
+{{-- ========================================================= --}}
 
-    {{-- ========================================================= --}}
-    {{-- VIBRATION TREND --}}
-    {{-- ========================================================= --}}
+<div class="bg-white rounded-2xl shadow-sm p-8">
 
-    <div class="bg-white rounded-2xl shadow-sm p-8">
+    <div class="flex flex-col lg:flex-row lg:justify-between lg:items-end gap-5 mb-6">
 
-        <div class="flex flex-col lg:flex-row lg:justify-between lg:items-end gap-5 mb-6">
+        <div>
+            <h2 class="text-2xl font-bold text-[#0F2D5C]">
+                Vibration Trend
+            </h2>
 
-            <div>
-                <h2 class="text-2xl font-bold text-[#0F2D5C]">
-                    Vibration Trend
-                </h2>
+            <p class="text-gray-500 mt-1">
+                Overall velocity vibration trend
+            </p>
+        </div>
 
-                <p class="text-gray-500 mt-1">
-                    Overall velocity vibration trend
-                </p>
-            </div>
+        <div class="flex flex-col md:flex-row gap-3">
 
-
-            {{-- FILTER --}}
+            {{-- EQUIPMENT + MEASUREMENT POINT FILTER --}}
             <form
                 method="GET"
                 action="{{ route('dashboard') }}"
@@ -499,180 +499,221 @@
 
             </form>
 
+
+            {{-- VIBRATION DISPLAY UNIT --}}
+            <div
+                class="inline-flex items-center self-start md:self-auto
+                       gap-1 border border-gray-300 rounded-xl
+                       p-1 bg-gray-50"
+            >
+
+                <button
+                    type="button"
+                    id="unitMmSButton"
+                    onclick="setVibrationDisplayUnit('mm/s RMS')"
+                    class="px-3 py-2 rounded-lg text-sm font-medium transition"
+                >
+                    mm/s RMS
+                </button>
+
+                <button
+                    type="button"
+                    id="unitInchSButton"
+                    onclick="setVibrationDisplayUnit('inch/s RMS')"
+                    class="px-3 py-2 rounded-lg text-sm font-medium transition"
+                >
+                    inch/s RMS
+                </button>
+
+            </div>
+
         </div>
 
-
-        {{-- SELECTED INFO --}}
-
-        @if($selectedEquipment || $selectedPoint)
-
-            <div class="bg-gray-50 rounded-xl px-5 py-4 mb-6">
-
-                <div class="flex flex-wrap gap-x-10 gap-y-2">
-
-                    <div>
-                        <p class="text-gray-400 text-sm">
-                            Equipment
-                        </p>
-
-                        <p class="font-semibold text-[#0F2D5C]">
-                            {{ $selectedEquipment?->equipment_name ?? '-' }}
-                        </p>
-                    </div>
+    </div>
 
 
-                    <div>
-                        <p class="text-gray-400 text-sm">
-                            Measurement Point
-                        </p>
+    {{-- SELECTED INFO --}}
 
-                        <p class="font-semibold text-[#0F2D5C]">
-                            {{ $selectedPoint?->point_name ?? '-' }}
+    @if($selectedEquipment || $selectedPoint)
 
-                            @if($selectedPoint?->direction)
-                                - {{ $selectedPoint->direction }}
-                            @endif
-                        </p>
-                    </div>
+        <div class="bg-gray-50 rounded-xl px-5 py-4 mb-6">
 
+            <div class="flex flex-wrap gap-x-10 gap-y-2">
+
+                <div>
+                    <p class="text-gray-400 text-sm">
+                        Equipment
+                    </p>
+
+                    <p class="font-semibold text-[#0F2D5C]">
+                        {{ $selectedEquipment?->equipment_name ?? '-' }}
+                    </p>
+                </div>
+
+
+                <div>
+                    <p class="text-gray-400 text-sm">
+                        Measurement Point
+                    </p>
+
+                    <p class="font-semibold text-[#0F2D5C]">
+                        {{ $selectedPoint?->point_name ?? '-' }}
+
+                        @if($selectedPoint?->direction)
+                            - {{ $selectedPoint->direction }}
+                        @endif
+                    </p>
                 </div>
 
             </div>
 
-        @endif
+        </div>
+
+    @endif
 
 
-        {{-- ========================================================= --}}
-        {{-- CURRENT / PREVIOUS / CHANGE --}}
-        {{-- ========================================================= --}}
+    {{-- ========================================================= --}}
+    {{-- CURRENT / PREVIOUS / CHANGE --}}
+    {{-- ========================================================= --}}
 
-        @if(count($trendLabels))
+    @if(count($trendLabels))
 
-            <div class="flex flex-wrap items-end gap-x-10 gap-y-4 mb-6">
+        <div class="flex flex-wrap items-end gap-x-10 gap-y-4 mb-6">
 
-                {{-- CURRENT --}}
-                <div>
-                    <p class="text-xs text-gray-400 uppercase tracking-wide">
-                        Current
+            {{-- CURRENT --}}
+            <div>
+
+                <p class="text-xs text-gray-400 uppercase tracking-wide">
+                    Current
+                </p>
+
+                <p
+                    id="currentTrendValueDisplay"
+                    class="text-lg font-bold text-[#0F2D5C] mt-1"
+                    data-value="{{ $currentTrendValue ?? '' }}"
+                >
+                    -
+                </p>
+
+                @if(!empty($currentTrendTimestamp))
+                    <p class="text-xs text-gray-400 mt-1">
+                        {{ date('d M Y H:i:s', strtotime($currentTrendTimestamp)) }}
                     </p>
-
-                    <p class="text-lg font-bold text-[#0F2D5C] mt-1">
-                        {{ isset($currentTrendValue) && $currentTrendValue !== null
-                            ? number_format((float) $currentTrendValue, 2) . ' mm/s RMS · ' .
-                              number_format((float) $currentTrendValue / 25.4, 3) . ' inch/s RMS'
-                            : '-' }}
-                    </p>
-
-                    @if(!empty($currentTrendTimestamp))
-                        <p class="text-xs text-gray-400 mt-1">
-                            {{ date('d M Y H:i:s', strtotime($currentTrendTimestamp)) }}
-                        </p>
-                    @endif
-                </div>
-
-
-                {{-- PREVIOUS --}}
-                <div>
-                    <p class="text-xs text-gray-400 uppercase tracking-wide">
-                        Previous
-                    </p>
-
-                    <p class="text-lg font-semibold text-gray-600 mt-1">
-                        {{ isset($previousTrendValue) && $previousTrendValue !== null
-                            ? number_format((float) $previousTrendValue, 2) . ' mm/s RMS · ' .
-                              number_format((float) $previousTrendValue / 25.4, 3) . ' inch/s RMS'
-                            : '-' }}
-                    </p>
-
-                    @if(!empty($previousTrendTimestamp))
-                        <p class="text-xs text-gray-400 mt-1">
-                            {{ date('d M Y H:i:s', strtotime($previousTrendTimestamp)) }}
-                        </p>
-                    @endif
-                </div>
-
-
-                {{-- CHANGE --}}
-                <div>
-                    <p class="text-xs text-gray-400 uppercase tracking-wide">
-                        Change
-                    </p>
-
-                    @php
-                        $displayChangePercent =
-                            isset($trendChangePercent)
-                                ? $trendChangePercent
-                                : null;
-
-                        $changeClass =
-                            $displayChangePercent !== null
-                                ? (
-                                    $displayChangePercent > 0
-                                        ? 'text-red-600'
-                                        : (
-                                            $displayChangePercent < 0
-                                                ? 'text-green-600'
-                                                : 'text-gray-600'
-                                        )
-                                )
-                                : 'text-gray-600';
-                    @endphp
-
-                    <p class="text-lg font-semibold mt-1 {{ $changeClass }}">
-                        {{ $displayChangePercent !== null
-                            ? (
-                                $displayChangePercent > 0 ? '+' : ''
-                            ) . number_format((float) $displayChangePercent, 2) . '%'
-                            : '-' }}
-                    </p>
-                </div>
-
-
-                {{-- TREND STATUS --}}
-                @if(!empty($trendStatus))
-
-                    @php
-                        $trendStatusClass = match ($trendStatus) {
-                            'Increasing' => 'bg-red-100 text-red-700',
-                            'Improving' => 'bg-green-100 text-green-700',
-                            'Stable' => 'bg-gray-100 text-gray-600',
-                            default => 'bg-gray-100 text-gray-600',
-                        };
-                    @endphp
-
-                    <div>
-                        <p class="text-xs text-gray-400 uppercase tracking-wide">
-                            Trend
-                        </p>
-
-                        <span class="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold mt-1 {{ $trendStatusClass }}">
-                            {{ $trendStatus }}
-                        </span>
-                    </div>
-
                 @endif
 
             </div>
 
 
-            {{-- ========================================================= --}}
-            {{-- CHART --}}
-            {{-- ========================================================= --}}
+            {{-- PREVIOUS --}}
+            <div>
 
-            <div class="w-full h-[380px]">
-                <canvas id="dashboardVibrationTrend"></canvas>
+                <p class="text-xs text-gray-400 uppercase tracking-wide">
+                    Previous
+                </p>
+
+                <p
+                    id="previousTrendValueDisplay"
+                    class="text-lg font-semibold text-gray-600 mt-1"
+                    data-value="{{ $previousTrendValue ?? '' }}"
+                >
+                    -
+                </p>
+
+                @if(!empty($previousTrendTimestamp))
+                    <p class="text-xs text-gray-400 mt-1">
+                        {{ date('d M Y H:i:s', strtotime($previousTrendTimestamp)) }}
+                    </p>
+                @endif
+
             </div>
 
-        @else
 
-            <div class="bg-gray-50 rounded-xl p-10 text-center text-gray-500">
-                No vibration trend data available for the selected measurement point.
+            {{-- CHANGE --}}
+            <div>
+
+                <p class="text-xs text-gray-400 uppercase tracking-wide">
+                    Change
+                </p>
+
+                @php
+                    $displayChangePercent =
+                        isset($trendChangePercent)
+                            ? $trendChangePercent
+                            : null;
+
+                    $changeClass =
+                        $displayChangePercent !== null
+                            ? (
+                                $displayChangePercent > 0
+                                    ? 'text-red-600'
+                                    : (
+                                        $displayChangePercent < 0
+                                            ? 'text-green-600'
+                                            : 'text-gray-600'
+                                    )
+                            )
+                            : 'text-gray-600';
+                @endphp
+
+                <p class="text-lg font-semibold mt-1 {{ $changeClass }}">
+                    {{ $displayChangePercent !== null
+                        ? (
+                            $displayChangePercent > 0 ? '+' : ''
+                        ) . number_format((float) $displayChangePercent, 2) . '%'
+                        : '-' }}
+                </p>
+
             </div>
 
-        @endif
 
-    </div>
+            {{-- TREND STATUS --}}
+            @if(!empty($trendStatus))
 
+                @php
+                    $trendStatusClass = match ($trendStatus) {
+                        'Increasing' => 'bg-red-100 text-red-700',
+                        'Improving' => 'bg-green-100 text-green-700',
+                        'Stable' => 'bg-gray-100 text-gray-600',
+                        default => 'bg-gray-100 text-gray-600',
+                    };
+                @endphp
+
+                <div>
+
+                    <p class="text-xs text-gray-400 uppercase tracking-wide">
+                        Trend
+                    </p>
+
+                    <span
+                        class="inline-flex items-center px-3 py-1.5
+                               rounded-full text-xs font-semibold mt-1
+                               {{ $trendStatusClass }}"
+                    >
+                        {{ $trendStatus }}
+                    </span>
+
+                </div>
+
+            @endif
+
+        </div>
+
+
+        {{-- CHART --}}
+
+        <div class="w-full h-[380px]">
+            <canvas id="dashboardVibrationTrend"></canvas>
+        </div>
+
+    @else
+
+        <div class="bg-gray-50 rounded-xl p-10 text-center text-gray-500">
+            No vibration trend data available for the selected measurement point.
+        </div>
+
+    @endif
+
+</div>
 
     {{-- ========================================================= --}}
     {{-- HIGHEST VIBRATION --}}
@@ -1988,6 +2029,32 @@ document.addEventListener('keydown', function (event) {
 
     <script>
 
+        /*
+        |--------------------------------------------------------------------------
+        | VIBRATION DISPLAY UNIT
+        |--------------------------------------------------------------------------
+        |
+        | Raw value from database / ODX remains mm/s RMS.
+        | Conversion is only performed for UI display.
+        |
+        */
+
+        const VIBRATION_UNIT_STORAGE_KEY =
+            'cbm_vibration_display_unit';
+
+
+        let vibrationDisplayUnit =
+            localStorage.getItem(
+                VIBRATION_UNIT_STORAGE_KEY
+            ) || 'mm/s RMS';
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | RAW TREND DATA
+        |--------------------------------------------------------------------------
+        */
+
         const trendLabels =
             @json($trendLabels);
 
@@ -1997,6 +2064,273 @@ document.addEventListener('keydown', function (event) {
         const trendTimestamps =
             @json($trendTimestamps ?? []);
 
+
+        /*
+        |--------------------------------------------------------------------------
+        | CHART INSTANCE
+        |--------------------------------------------------------------------------
+        */
+
+        let dashboardVibrationChart = null;
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | UNIT CONVERSION
+        |--------------------------------------------------------------------------
+        */
+
+        function convertVibrationValue(value) {
+
+            const numericValue =
+                Number(value);
+
+            if (!Number.isFinite(numericValue)) {
+                return null;
+            }
+
+            if (
+                vibrationDisplayUnit ===
+                'inch/s RMS'
+            ) {
+                return numericValue / 25.4;
+            }
+
+            return numericValue;
+        }
+
+
+        function formatVibrationValue(value) {
+
+            const convertedValue =
+                convertVibrationValue(value);
+
+            if (convertedValue === null) {
+                return '-';
+            }
+
+            return (
+                convertedValue.toFixed(2) +
+                ' ' +
+                vibrationDisplayUnit
+            );
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | UPDATE UNIT BUTTON UI
+        |--------------------------------------------------------------------------
+        */
+
+        function updateVibrationUnitUI() {
+
+            const mmButton =
+                document.getElementById(
+                    'unitMmSButton'
+                );
+
+            const inchButton =
+                document.getElementById(
+                    'unitInchSButton'
+                );
+
+
+            const activeClasses =
+                [
+                    'bg-[#0F2D5C]',
+                    'text-white',
+                    'shadow-sm'
+                ];
+
+            const inactiveClasses =
+                [
+                    'text-gray-600',
+                    'hover:bg-gray-100'
+                ];
+
+
+            if (mmButton) {
+
+                mmButton.classList.remove(
+                    ...activeClasses,
+                    ...inactiveClasses
+                );
+
+                if (
+                    vibrationDisplayUnit ===
+                    'mm/s RMS'
+                ) {
+
+                    mmButton.classList.add(
+                        ...activeClasses
+                    );
+
+                } else {
+
+                    mmButton.classList.add(
+                        ...inactiveClasses
+                    );
+
+                }
+
+            }
+
+
+            if (inchButton) {
+
+                inchButton.classList.remove(
+                    ...activeClasses,
+                    ...inactiveClasses
+                );
+
+                if (
+                    vibrationDisplayUnit ===
+                    'inch/s RMS'
+                ) {
+
+                    inchButton.classList.add(
+                        ...activeClasses
+                    );
+
+                } else {
+
+                    inchButton.classList.add(
+                        ...inactiveClasses
+                    );
+
+                }
+
+            }
+
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | UPDATE CURRENT / PREVIOUS
+        |--------------------------------------------------------------------------
+        */
+
+        function updateTrendSummary() {
+
+            const currentElement =
+                document.getElementById(
+                    'currentTrendValueDisplay'
+                );
+
+            const previousElement =
+                document.getElementById(
+                    'previousTrendValueDisplay'
+                );
+
+
+            if (currentElement) {
+
+                const currentValue =
+                    currentElement.dataset.value;
+
+                currentElement.textContent =
+                    formatVibrationValue(
+                        currentValue
+                    );
+
+            }
+
+
+            if (previousElement) {
+
+                const previousValue =
+                    previousElement.dataset.value;
+
+                previousElement.textContent =
+                    formatVibrationValue(
+                        previousValue
+                    );
+
+            }
+
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | UPDATE CHART DATA / LABEL / AXIS
+        |--------------------------------------------------------------------------
+        */
+
+        function updateVibrationChart() {
+
+            if (!dashboardVibrationChart) {
+                return;
+            }
+
+
+            dashboardVibrationChart.data.datasets[0].data =
+                trendValues.map(function (value) {
+
+                    return convertVibrationValue(
+                        value
+                    );
+
+                });
+
+
+            dashboardVibrationChart.data.datasets[0].label =
+                'Overall Velocity (' +
+                vibrationDisplayUnit +
+                ')';
+
+
+            dashboardVibrationChart.options.scales.y.title.text =
+                vibrationDisplayUnit;
+
+
+            dashboardVibrationChart.update();
+
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | CHANGE DISPLAY UNIT
+        |--------------------------------------------------------------------------
+        */
+
+        function setVibrationDisplayUnit(unit) {
+
+            if (
+                unit !== 'mm/s RMS' &&
+                unit !== 'inch/s RMS'
+            ) {
+                return;
+            }
+
+
+            vibrationDisplayUnit =
+                unit;
+
+
+            localStorage.setItem(
+                VIBRATION_UNIT_STORAGE_KEY,
+                vibrationDisplayUnit
+            );
+
+
+            updateVibrationUnitUI();
+
+            updateTrendSummary();
+
+            updateVibrationChart();
+
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | CREATE CHART
+        |--------------------------------------------------------------------------
+        */
 
         const chartElement =
             document.getElementById(
@@ -2010,110 +2344,149 @@ document.addEventListener('keydown', function (event) {
                 chartElement.getContext('2d');
 
 
-            new Chart(ctx, {
+            dashboardVibrationChart =
+                new Chart(ctx, {
 
-                type: 'line',
+                    type: 'line',
 
-                data: {
+                    data: {
 
-                    labels: trendLabels,
+                        labels:
+                            trendLabels,
 
-                    datasets: [
+                        datasets: [
 
-                        {
-                            label:
-                                'Overall Velocity (mm/s RMS) · inch/s RMS shown in tooltip',
+                            {
 
-                            data:
-                                trendValues,
+                                label:
+                                    'Overall Velocity (' +
+                                    vibrationDisplayUnit +
+                                    ')',
 
-                            borderWidth: 2,
+                                data:
+                                    trendValues.map(
+                                        function (value) {
+                                            return convertVibrationValue(
+                                                value
+                                            );
+                                        }
+                                    ),
 
-                            pointRadius: 5,
+                                borderWidth: 2,
 
-                            pointHoverRadius: 7,
+                                pointRadius: 5,
 
-                            tension: 0.25,
+                                pointHoverRadius: 7,
 
-                            fill: false
-                        }
+                                tension: 0.25,
 
-                    ]
-                },
+                                fill: false
 
+                            }
 
-                options: {
+                        ]
 
-                    responsive: true,
-
-                    maintainAspectRatio: false,
-
-
-                    plugins: {
-
-                        legend: {
-                            display: true
-                        },
-
-
-                        tooltip: {
-
-                            callbacks: {
-
-                                title: function(tooltipItems) {
-
-                                    const index =
-                                        tooltipItems[0].dataIndex;
-
-                                    const date =
-                                        trendLabels[index] ?? '-';
-
-                                    const timestamp =
-                                        String(
-                                            trendTimestamps[index] ?? ''
-                                        )
-                                        .replace('T', ' ');
+                    },
 
 
-                                    /*
-                                    |--------------------------------------------------------------------------
-                                    | Do NOT use new Date() here.
-                                    |
-                                    | measurement_datetime from the database
-                                    | is already local site time.
-                                    |--------------------------------------------------------------------------
-                                    */
+                    options: {
 
-                                    const time =
-                                        timestamp.length >= 19
-                                            ? timestamp.substring(11, 19)
-                                            : '-';
+                        responsive: true,
+
+                        maintainAspectRatio: false,
 
 
-                                    return [
-                                        date,
-                                        'Time: ' + time
-                                    ];
-                                },
+                        plugins: {
+
+                            legend: {
+                                display: true
+                            },
 
 
-                                label: function(context) {
+                            tooltip: {
 
-                                    const value =
-                                        context.parsed.y;
+                                callbacks: {
+
+                                    title:
+                                        function (
+                                            tooltipItems
+                                        ) {
+
+                                            const index =
+                                                tooltipItems[0]
+                                                    .dataIndex;
 
 
-                                    if (!Number.isFinite(value)) {
-                                        return 'Overall Velocity: -';
-                                    }
+                                            const date =
+                                                trendLabels[index]
+                                                ?? '-';
 
-                                    const mm = Number(value);
-                                    const inch = mm / 25.4;
 
-                                    return [
-                                        'Overall Velocity (mm/s RMS): ' + mm.toFixed(3),
-                                        'Overall Velocity (inch/s RMS): ' + inch.toFixed(3)
-                                    ];
+                                            const timestamp =
+                                                String(
+                                                    trendTimestamps[index]
+                                                    ?? ''
+                                                )
+                                                .replace(
+                                                    'T',
+                                                    ' '
+                                                );
+
+
+                                            /*
+                                            | Do NOT use new Date()
+                                            | because measurement_datetime
+                                            | is already local site time.
+                                            */
+
+                                            const time =
+                                                timestamp.length >= 19
+                                                    ? timestamp.substring(
+                                                        11,
+                                                        19
+                                                    )
+                                                    : '-';
+
+
+                                            return [
+                                                date,
+                                                'Time: ' + time
+                                            ];
+
+                                        },
+
+
+                                    label:
+                                        function (
+                                            context
+                                        ) {
+
+                                            const value =
+                                                context.parsed.y;
+
+
+                                            if (
+                                                !Number.isFinite(
+                                                    value
+                                                )
+                                            ) {
+                                                return [
+                                                    'Overall Velocity: -'
+                                                ];
+                                            }
+
+
+                                            return [
+                                                'Overall Velocity (' +
+                                                vibrationDisplayUnit +
+                                                '): ' +
+                                                value.toFixed(2) +
+                                                ' ' +
+                                                vibrationDisplayUnit
+                                            ];
+
+                                        }
+
                                 }
 
                             }
@@ -2134,7 +2507,7 @@ document.addEventListener('keydown', function (event) {
                                 display: true,
 
                                 text:
-                                    'mm/s RMS (inch/s RMS = mm/s ÷ 25.4)'
+                                    vibrationDisplayUnit
 
                             }
 
@@ -2156,11 +2529,20 @@ document.addEventListener('keydown', function (event) {
 
                     }
 
-                }
-
-            });
+                });
 
         }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | INITIALIZE UNIT UI
+        |--------------------------------------------------------------------------
+        */
+
+        updateVibrationUnitUI();
+
+        updateTrendSummary();
 
     </script>
 
