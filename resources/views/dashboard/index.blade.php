@@ -230,7 +230,12 @@
                                 'diagnosis' => $equipmentInspection->diagnosis ?? '',
                                 'recommendation' => $equipmentInspection->recommendation ?? '',
                                 'reportFile' => $equipmentInspection->report_file ?? null,
+
+                                'operatingParameters' =>
+                                    $equipmentInspection->operating_parameters ?? null,
+
                                 'measurementCount' => $measurements->count(),
+
                                 'measurements' => $measurements->map(function ($measurement) use (
                                     $determineSeverity
                                 ) {
@@ -1204,56 +1209,244 @@ function openInspectionDetail(historyIndex) {
         return;
     }
 
+        const operatingParameters = session.operatingParameters || {};
+
+    const parameterValue = (key, unit) => {
+        const value = operatingParameters[key];
+
+        if (
+            value === null ||
+            value === undefined ||
+            value === ''
+        ) {
+            return `
+                <span class="text-gray-400">-</span>
+                <span class="text-sm font-normal text-gray-400">
+                    ${unit}
+                </span>
+            `;
+        }
+
+        return `
+            <span class="text-xl font-semibold text-[#0F2D5C]">
+                ${escapeHtml(String(value))}
+            </span>
+            <span class="text-sm font-normal text-gray-500">
+                ${unit}
+            </span>
+        `;
+    };
+
     content.innerHTML = `
+        {{-- OPERATING PARAMETERS --}}
+        <div class="bg-white border border-gray-200 rounded-xl p-6 mb-4">
+
+            <div class="flex flex-col md:flex-row
+                        md:items-center md:justify-between gap-3 mb-5">
+
+                <div>
+                    <h3 class="text-lg font-bold text-[#0F2D5C]">
+                        Operating Parameters
+                    </h3>
+
+                    <p class="text-sm text-gray-500 mt-1">
+                        Operating condition during measurement
+                    </p>
+                </div>
+
+                ${
+                    currentUserIsAdmin
+                        ? `
+                            <a
+                                href="/equipment-inspection/${session.id}/operating-parameters/edit"
+                                class="inline-flex items-center justify-center
+                                       px-4 py-2 rounded-lg
+                                       border border-[#0F2D5C]
+                                       text-[#0F2D5C]
+                                       hover:bg-blue-50
+                                       text-sm font-semibold"
+                            >
+                                Edit Operating Parameters
+                            </a>
+                          `
+                        : ''
+                }
+
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2
+                        lg:grid-cols-4 gap-5">
+
+                <div>
+                    <p class="text-sm text-gray-500">
+                        Speed
+                    </p>
+                    <p class="mt-1">
+                        ${parameterValue('speed_rpm', 'RPM')}
+                    </p>
+                </div>
+
+                <div>
+                    <p class="text-sm text-gray-500">
+                        Suction Pressure
+                    </p>
+                    <p class="mt-1">
+                        ${parameterValue('suction_pressure', 'Psi')}
+                    </p>
+                </div>
+
+                <div>
+                    <p class="text-sm text-gray-500">
+                        Discharge Pressure
+                    </p>
+                    <p class="mt-1">
+                        ${parameterValue('discharge_pressure', 'Psi')}
+                    </p>
+                </div>
+
+                <div>
+                    <p class="text-sm text-gray-500">
+                        Flow Rate
+                    </p>
+                    <p class="mt-1">
+                        ${parameterValue('flow_rate', 'USGPM')}
+                    </p>
+                </div>
+
+                <div>
+                    <p class="text-sm text-gray-500">
+                        Bearing Temp M-Out
+                    </p>
+                    <p class="mt-1">
+                        ${parameterValue('bearing_temp_m_out', '°C')}
+                    </p>
+                </div>
+
+                <div>
+                    <p class="text-sm text-gray-500">
+                        Bearing Temp M-In
+                    </p>
+                    <p class="mt-1">
+                        ${parameterValue('bearing_temp_m_in', '°C')}
+                    </p>
+                </div>
+
+                <div>
+                    <p class="text-sm text-gray-500">
+                        Bearing Temp P-In
+                    </p>
+                    <p class="mt-1">
+                        ${parameterValue('bearing_temp_p_in', '°C')}
+                    </p>
+                </div>
+
+                <div>
+                    <p class="text-sm text-gray-500">
+                        Bearing Temp P-Out
+                    </p>
+                    <p class="mt-1">
+                        ${parameterValue('bearing_temp_p_out', '°C')}
+                    </p>
+                </div>
+
+            </div>
+
+        </div>
+
+        {{-- MEASUREMENT RESULTS --}}
         <div class="overflow-x-auto border border-gray-200 rounded-xl">
+
             <table class="w-full text-sm">
+
                 <thead class="bg-gray-50">
                     <tr>
-                        <th class="px-4 py-3 text-left font-semibold text-gray-600">Point</th>
-                        <th class="px-4 py-3 text-left font-semibold text-gray-600">Location</th>
-                        <th class="px-4 py-3 text-left font-semibold text-gray-600">Direction</th>
-                        <th class="px-4 py-3 text-right font-semibold text-gray-600">Overall RMS</th>
-                        <th class="px-4 py-3 text-center font-semibold text-gray-600">Severity</th>
-                        <th class="px-4 py-3 text-right font-semibold text-gray-600">Crest Factor</th>
-                        <th class="px-4 py-3 text-left font-semibold text-gray-600">Timestamp</th>
+                        <th class="px-4 py-3 text-left font-semibold text-gray-600">
+                            Point
+                        </th>
+
+                        <th class="px-4 py-3 text-left font-semibold text-gray-600">
+                            Location
+                        </th>
+
+                        <th class="px-4 py-3 text-left font-semibold text-gray-600">
+                            Direction
+                        </th>
+
+                        <th class="px-4 py-3 text-right font-semibold text-gray-600">
+                            Overall RMS
+                        </th>
+
+                        <th class="px-4 py-3 text-center font-semibold text-gray-600">
+                            Severity
+                        </th>
+
+                        <th class="px-4 py-3 text-right font-semibold text-gray-600">
+                            Crest Factor
+                        </th>
+
+                        <th class="px-4 py-3 text-left font-semibold text-gray-600">
+                            Timestamp
+                        </th>
                     </tr>
                 </thead>
+
                 <tbody class="divide-y divide-gray-100">
+
                     ${session.measurements.map(m => `
+
                         <tr class="hover:bg-gray-50">
-                            <td class="px-4 py-3 font-semibold text-gray-800 whitespace-nowrap">${escapeHtml(m.point)}</td>
-                            <td class="px-4 py-3 text-gray-600">${escapeHtml(m.location || '-')}</td>
-                            <td class="px-4 py-3 text-gray-600">${escapeHtml(m.direction || '-')}</td>
-                            <td class="px-4 py-3 text-right font-semibold text-[#0F2D5C] whitespace-nowrap">
-                                ${formatVelocityPair(m.overall, m.unit || 'mm/s RMS')}
+
+                            <td class="px-4 py-3 font-semibold text-gray-800 whitespace-nowrap">
+                                ${escapeHtml(m.point)}
                             </td>
+
+                            <td class="px-4 py-3 text-gray-600">
+                                ${escapeHtml(m.location || '-')}
+                            </td>
+
+                            <td class="px-4 py-3 text-gray-600">
+                                ${escapeHtml(m.direction || '-')}
+                            </td>
+
+                            <td class="px-4 py-3 text-right font-semibold text-[#0F2D5C] whitespace-nowrap">
+                                ${formatVelocityPair(
+                                    m.overall,
+                                    m.unit || 'mm/s RMS'
+                                )}
+                            </td>
+
                             <td class="px-4 py-3 text-center">
                                 ${severityBadge(m.severity)}
                             </td>
-                            <td class="px-4 py-3 text-right text-gray-700">${formatNumber(m.crest)}</td>
-                            <td class="px-4 py-3 text-gray-600 whitespace-nowrap">${formatDateTime(m.datetime)}</td>
-                        </tr>
-                    `).join('')}
-                </tbody>
-            </table>
-        </div>
 
-        ${(session.diagnosis || session.recommendation) ? `
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">
-                ${session.diagnosis ? `
-                    <div class="bg-gray-50 rounded-xl p-4">
-                        <p class="text-xs font-semibold text-gray-500 uppercase">Diagnosis</p>
-                        <p class="text-sm text-gray-700 mt-2 whitespace-pre-line">${escapeHtml(session.diagnosis)}</p>
-                    </div>
-                ` : ''}
-                ${session.recommendation ? `
-                    <div class="bg-gray-50 rounded-xl p-4">
-                        <p class="text-xs font-semibold text-gray-500 uppercase">Recommendation</p>
-                        <p class="text-sm text-gray-700 mt-2 whitespace-pre-line">${escapeHtml(session.recommendation)}</p>
-                    </div>
-                ` : ''}
-            </div>
-        ` : ''}
+                            <td class="px-4 py-3 text-right text-gray-700">
+                                ${
+                                    m.crest !== null &&
+                                    m.crest !== undefined
+                                        ? escapeHtml(String(m.crest))
+                                        : '-'
+                                }
+                            </td>
+
+                            <td class="px-4 py-3 text-gray-600 whitespace-nowrap">
+                                ${
+                                    m.datetime
+                                        ? escapeHtml(
+                                            formatDateTime(m.datetime)
+                                        )
+                                        : '-'
+                                }
+                            </td>
+
+                        </tr>
+
+                    `).join('')}
+
+                </tbody>
+
+            </table>
+
+        </div>
     `;
 }
 
