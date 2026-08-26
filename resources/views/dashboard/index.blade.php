@@ -1067,68 +1067,107 @@
             {{-- BODY --}}
             <div class="p-6 overflow-y-auto max-h-[calc(92vh-100px)]">
 
-                {{-- SESSION SELECTOR --}}
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                {{-- ========================================================= --}}
+{{-- COMPARISON SELECTOR --}}
+{{-- ========================================================= --}}
 
-                    <div class="bg-gray-50 rounded-xl border border-gray-200 p-5">
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
 
-                        <p class="text-xs uppercase tracking-wide
-                                  text-gray-400 font-semibold">
-                            Measurement A
-                        </p>
+    {{-- MEASUREMENT A --}}
+    <div class="bg-gray-50 rounded-xl border border-gray-200 p-5">
 
-                        <select
-                            id="comparisonSessionA"
-                            onchange="renderComparison()"
-                            class="mt-3 w-full rounded-lg border
-                                   border-gray-300 bg-white px-3 py-2.5
-                                   text-sm text-[#0F2D5C]"
-                        >
-                            <option value="">
-                                Select inspection session
-                            </option>
-                        </select>
+        <p class="text-xs uppercase tracking-wide
+                  text-gray-400 font-semibold">
+            Measurement A
+        </p>
 
-                    </div>
+        {{-- EQUIPMENT A --}}
+        <label class="block text-xs font-medium text-gray-500 mt-4 mb-1.5">
+            Equipment
+        </label>
 
-
-                    <div class="bg-gray-50 rounded-xl border border-gray-200 p-5">
-
-                        <p class="text-xs uppercase tracking-wide
-                                  text-gray-400 font-semibold">
-                            Measurement B
-                        </p>
-
-                        <select
-                            id="comparisonSessionB"
-                            onchange="renderComparison()"
-                            class="mt-3 w-full rounded-lg border
-                                   border-gray-300 bg-white px-3 py-2.5
-                                   text-sm text-[#0F2D5C]"
-                        >
-                            <option value="">
-                                Select inspection session
-                            </option>
-                        </select>
-
-                    </div>
-
-                </div>
+        <select
+            id="comparisonEquipmentA"
+            onchange="updateComparisonDates('A')"
+            class="w-full rounded-lg border border-gray-300
+                   bg-white px-3 py-2.5 text-sm
+                   text-[#0F2D5C]"
+        >
+            <option value="">
+                Select equipment
+            </option>
+        </select>
 
 
-                {{-- COMPARISON RESULT --}}
-                <div id="comparisonResult" class="mt-6">
-                    <div class="bg-gray-50 rounded-xl p-8
-                                text-center text-gray-400">
-                        Select two inspection sessions to compare.
-                    </div>
-                </div>
+        {{-- DATE A --}}
+        <label class="block text-xs font-medium text-gray-500 mt-4 mb-1.5">
+            Inspection Date
+        </label>
 
-            </div>
-
-        </div>
+        <select
+            id="comparisonDateA"
+            onchange="renderComparison()"
+            disabled
+            class="w-full rounded-lg border border-gray-300
+                   bg-white px-3 py-2.5 text-sm
+                   text-[#0F2D5C] disabled:bg-gray-100
+                   disabled:text-gray-400"
+        >
+            <option value="">
+                Select inspection date
+            </option>
+        </select>
 
     </div>
+
+
+    {{-- MEASUREMENT B --}}
+    <div class="bg-gray-50 rounded-xl border border-gray-200 p-5">
+
+        <p class="text-xs uppercase tracking-wide
+                  text-gray-400 font-semibold">
+            Measurement B
+        </p>
+
+        {{-- EQUIPMENT B --}}
+        <label class="block text-xs font-medium text-gray-500 mt-4 mb-1.5">
+            Equipment
+        </label>
+
+        <select
+            id="comparisonEquipmentB"
+            onchange="updateComparisonDates('B')"
+            class="w-full rounded-lg border border-gray-300
+                   bg-white px-3 py-2.5 text-sm
+                   text-[#0F2D5C]"
+        >
+            <option value="">
+                Select equipment
+            </option>
+        </select>
+
+
+        {{-- DATE B --}}
+        <label class="block text-xs font-medium text-gray-500 mt-4 mb-1.5">
+            Inspection Date
+        </label>
+
+        <select
+            id="comparisonDateB"
+            onchange="renderComparison()"
+            disabled
+            class="w-full rounded-lg border border-gray-300
+                   bg-white px-3 py-2.5 text-sm
+                   text-[#0F2D5C] disabled:bg-gray-100
+                   disabled:text-gray-400"
+        >
+            <option value="">
+                Select inspection date
+            </option>
+        </select>
+
+    </div>
+
 </div>
 
 {{-- ========================================================= --}}
@@ -1279,90 +1318,27 @@ let activeHistoryIndex = null;
 let comparisonSessions = [];
 
 
+/*
+|--------------------------------------------------------------------------
+| MEASUREMENT COMPARISON
+|--------------------------------------------------------------------------
+|
+| Flow:
+|
+| Equipment A
+|      ↓
+| Inspection Date A
+|
+| Equipment B
+|      ↓
+| Inspection Date B
+|
+| All measurement points are compared automatically.
+|
+|--------------------------------------------------------------------------
+*/
+
 function openComparisonModal() {
-
-    const modal = document.getElementById('comparisonModal');
-
-    if (!modal) {
-        return;
-    }
-
-    comparisonSessions = [];
-
-    Object.entries(equipmentDetailData).forEach(
-        ([equipmentId, equipment]) => {
-
-            (equipment.history || []).forEach(
-                (session, historyIndex) => {
-
-                    comparisonSessions.push({
-                        key: `${equipmentId}_${historyIndex}`,
-                        equipmentId: equipmentId,
-                        equipmentName: equipment.name,
-                        area: equipment.area,
-                        historyIndex: historyIndex,
-                        session: session
-                    });
-
-                }
-            );
-
-        }
-    );
-
-
-    const selectA =
-        document.getElementById('comparisonSessionA');
-
-    const selectB =
-        document.getElementById('comparisonSessionB');
-
-
-    const options = comparisonSessions.map(item => {
-
-        const date =
-            formatDateOnly(item.session.inspectionDate);
-
-        const highest =
-            formatVelocityInline(
-                item.session.highestOverall,
-                'mm/s RMS'
-            );
-
-        return `
-            <option value="${escapeHtml(item.key)}">
-                ${escapeHtml(item.equipmentName)}
-                · ${escapeHtml(date)}
-                · Highest ${highest.replace(/<[^>]*>/g, '')}
-            </option>
-        `;
-
-    }).join('');
-
-
-    selectA.innerHTML =
-        `<option value="">Select inspection session</option>${options}`;
-
-    selectB.innerHTML =
-        `<option value="">Select inspection session</option>${options}`;
-
-
-    document.getElementById('comparisonResult').innerHTML = `
-        <div class="bg-gray-50 rounded-xl p-8
-                    text-center text-gray-400">
-            Select two inspection sessions to compare.
-        </div>
-    `;
-
-
-    modal.classList.remove('hidden');
-    modal.setAttribute('aria-hidden', 'false');
-
-    document.body.classList.add('overflow-hidden');
-}
-
-
-function closeComparisonModal() {
 
     const modal =
         document.getElementById('comparisonModal');
@@ -1371,229 +1347,989 @@ function closeComparisonModal() {
         return;
     }
 
-    modal.classList.add('hidden');
-    modal.setAttribute('aria-hidden', 'true');
 
-    document.body.classList.remove('overflow-hidden');
+    /*
+    |--------------------------------------------------------------------------
+    | BUILD EQUIPMENT OPTIONS
+    |--------------------------------------------------------------------------
+    */
+
+    const equipmentOptions =
+        Object.entries(equipmentDetailData)
+            .sort(function (a, b) {
+
+                return String(a[1].name || '')
+                    .localeCompare(
+                        String(b[1].name || '')
+                    );
+
+            })
+            .map(function ([equipmentId, equipment]) {
+
+                return `
+                    <option value="${escapeHtml(equipmentId)}">
+                        ${escapeHtml(equipment.name || '-')}
+                    </option>
+                `;
+
+            })
+            .join('');
+
+
+    const equipmentA =
+        document.getElementById(
+            'comparisonEquipmentA'
+        );
+
+    const equipmentB =
+        document.getElementById(
+            'comparisonEquipmentB'
+        );
+
+
+    if (equipmentA) {
+
+        equipmentA.innerHTML =
+            `<option value="">Select equipment</option>` +
+            equipmentOptions;
+
+        equipmentA.value = '';
+
+    }
+
+
+    if (equipmentB) {
+
+        equipmentB.innerHTML =
+            `<option value="">Select equipment</option>` +
+            equipmentOptions;
+
+        equipmentB.value = '';
+
+    }
+
+
+    resetComparisonDateSelector('A');
+    resetComparisonDateSelector('B');
+
+
+    document.getElementById(
+        'comparisonResult'
+    ).innerHTML = `
+
+        <div class="bg-gray-50 rounded-xl p-8
+                    text-center text-gray-400">
+
+            Select Equipment A and Equipment B,
+            then select their inspection dates.
+
+        </div>
+
+    `;
+
+
+    modal.classList.remove('hidden');
+
+    modal.setAttribute(
+        'aria-hidden',
+        'false'
+    );
+
+    document.body.classList.add(
+        'overflow-hidden'
+    );
+
 }
 
 
-function getComparisonSession(key) {
+/*
+|--------------------------------------------------------------------------
+| RESET DATE SELECTOR
+|--------------------------------------------------------------------------
+*/
 
-    return comparisonSessions.find(
-        item => item.key === key
-    ) || null;
+function resetComparisonDateSelector(side) {
+
+    const select =
+        document.getElementById(
+            `comparisonDate${side}`
+        );
+
+    if (!select) {
+        return;
+    }
+
+
+    select.innerHTML = `
+        <option value="">
+            Select inspection date
+        </option>
+    `;
+
+    select.value = '';
+
+    select.disabled = true;
+
 }
 
 
-function renderComparison() {
+/*
+|--------------------------------------------------------------------------
+| UPDATE INSPECTION DATE BASED ON EQUIPMENT
+|--------------------------------------------------------------------------
+*/
 
-    const keyA =
-        document.getElementById('comparisonSessionA')?.value;
+function updateComparisonDates(side) {
 
-    const keyB =
-        document.getElementById('comparisonSessionB')?.value;
+    const equipmentSelect =
+        document.getElementById(
+            `comparisonEquipment${side}`
+        );
 
-    const result =
-        document.getElementById('comparisonResult');
+    const dateSelect =
+        document.getElementById(
+            `comparisonDate${side}`
+        );
 
 
-    if (!keyA || !keyB) {
-
-        result.innerHTML = `
-            <div class="bg-gray-50 rounded-xl p-8
-                        text-center text-gray-400">
-                Select two inspection sessions to compare.
-            </div>
-        `;
-
+    if (!equipmentSelect || !dateSelect) {
         return;
     }
 
 
-    if (keyA === keyB) {
+    const equipmentId =
+        equipmentSelect.value;
 
-        result.innerHTML = `
-            <div class="bg-yellow-50 border border-yellow-200
-                        rounded-xl p-5 text-center
-                        text-yellow-700 text-sm">
-                Please select two different inspection sessions.
-            </div>
-        `;
+
+    resetComparisonDateSelector(side);
+
+
+    if (!equipmentId) {
+
+        renderComparison();
 
         return;
+
     }
 
 
-    const itemA = getComparisonSession(keyA);
-    const itemB = getComparisonSession(keyB);
+    const equipment =
+        equipmentDetailData[
+            String(equipmentId)
+        ];
 
 
-    if (!itemA || !itemB) {
+    if (!equipment) {
+
+        renderComparison();
+
         return;
+
     }
 
 
-    const sessionA = itemA.session;
-    const sessionB = itemB.session;
+    const history =
+        Array.isArray(equipment.history)
+            ? equipment.history
+            : [];
 
 
     /*
     |--------------------------------------------------------------------------
-    | MATCH MEASUREMENT POINTS
+    | BUILD DATE OPTIONS
     |--------------------------------------------------------------------------
     */
 
-    const measurementsA =
-        sessionA.measurements || [];
+    const options =
+        history.map(function (session, index) {
 
-    const measurementsB =
-        sessionB.measurements || [];
+            const date =
+                formatDateOnly(
+                    session.inspectionDate
+                );
 
 
-    const mapA = new Map(
-        measurementsA.map(m => [
-            `${m.point}|${m.direction}`,
-            m
-        ])
+            return `
+                <option value="${index}">
+                    ${escapeHtml(date)}
+                </option>
+            `;
+
+        }).join('');
+
+
+    dateSelect.innerHTML = `
+        <option value="">
+            Select inspection date
+        </option>
+        ${options}
+    `;
+
+
+    dateSelect.disabled =
+        history.length === 0;
+
+
+    renderComparison();
+
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| GET SELECTED COMPARISON SESSION
+|--------------------------------------------------------------------------
+*/
+
+function getSelectedComparisonSession(side) {
+
+    const equipmentSelect =
+        document.getElementById(
+            `comparisonEquipment${side}`
+        );
+
+    const dateSelect =
+        document.getElementById(
+            `comparisonDate${side}`
+        );
+
+
+    if (
+        !equipmentSelect ||
+        !dateSelect ||
+        !equipmentSelect.value ||
+        dateSelect.value === ''
+    ) {
+        return null;
+    }
+
+
+    const equipment =
+        equipmentDetailData[
+            String(equipmentSelect.value)
+        ];
+
+
+    if (!equipment) {
+        return null;
+    }
+
+
+    const historyIndex =
+        Number(dateSelect.value);
+
+
+    const session =
+        equipment.history?.[historyIndex];
+
+
+    if (!session) {
+        return null;
+    }
+
+
+    return {
+
+        equipmentId:
+            equipmentSelect.value,
+
+        equipmentName:
+            equipment.name,
+
+        area:
+            equipment.area,
+
+        historyIndex:
+            historyIndex,
+
+        session:
+            session
+
+    };
+
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| CLOSE COMPARISON MODAL
+|--------------------------------------------------------------------------
+*/
+
+function closeComparisonModal() {
+
+    const modal =
+        document.getElementById(
+            'comparisonModal'
+        );
+
+    if (!modal) {
+        return;
+    }
+
+
+    modal.classList.add('hidden');
+
+    modal.setAttribute(
+        'aria-hidden',
+        'true'
     );
 
-
-    const mapB = new Map(
-        measurementsB.map(m => [
-            `${m.point}|${m.direction}`,
-            m
-        ])
+    document.body.classList.remove(
+        'overflow-hidden'
     );
 
-
-    const keys = [
-        ...new Set([
-            ...mapA.keys(),
-            ...mapB.keys()
-        ])
-    ];
+}
 
 
-    const comparisonRows = keys.map(key => {
+/*
+|--------------------------------------------------------------------------
+| RENDER COMPARISON
+|--------------------------------------------------------------------------
+*/
 
-        const a = mapA.get(key);
-        const b = mapB.get(key);
+function renderComparison() {
 
-
-        const valueA =
-            a?.overall !== null &&
-            a?.overall !== undefined
-                ? velocityToInch(
-                    a.overall,
-                    a.unit || 'mm/s RMS'
-                )
-                : null;
+    const result =
+        document.getElementById(
+            'comparisonResult'
+        );
 
 
-        const valueB =
-            b?.overall !== null &&
-            b?.overall !== undefined
-                ? velocityToInch(
-                    b.overall,
-                    b.unit || 'mm/s RMS'
-                )
-                : null;
+    if (!result) {
+        return;
+    }
 
 
-        let change = null;
+    const itemA =
+        getSelectedComparisonSession('A');
 
-        if (
-            valueA !== null &&
-            valueB !== null &&
-            valueA !== 0
-        ) {
-            change =
-                ((valueB - valueA) / valueA) * 100;
-        }
+    const itemB =
+        getSelectedComparisonSession('B');
 
 
-        const changeClass =
-            change === null
-                ? 'text-gray-400'
-                : change > 0
-                    ? 'text-red-600'
-                    : change < 0
-                        ? 'text-green-600'
-                        : 'text-gray-500';
+    if (!itemA || !itemB) {
 
+        result.innerHTML = `
 
-        const changeText =
-            change === null
-                ? '-'
-                : `${change > 0 ? '+' : ''}${change.toFixed(1)}%`;
+            <div class="bg-gray-50 rounded-xl p-8
+                        text-center text-gray-400">
 
+                Select Equipment A and Equipment B,
+                then select their inspection dates.
 
-        return `
-            <tr class="border-t border-gray-100">
+            </div>
 
-                <td class="px-4 py-3 font-semibold
-                           text-[#0F2D5C] whitespace-nowrap">
-                    ${escapeHtml(a?.point || b?.point || '-')}
-                </td>
-
-                <td class="px-4 py-3 text-gray-600">
-                    ${escapeHtml(a?.direction || b?.direction || '-')}
-                </td>
-
-                <td class="px-4 py-3 text-right
-                           font-semibold text-[#0F2D5C]">
-                    ${
-                        valueA !== null
-                            ? `${valueA.toFixed(2)} inch/s RMS`
-                            : '-'
-                    }
-                </td>
-
-                <td class="px-4 py-3 text-right
-                           font-semibold text-[#0F2D5C]">
-                    ${
-                        valueB !== null
-                            ? `${valueB.toFixed(2)} inch/s RMS`
-                            : '-'
-                    }
-                </td>
-
-                <td class="px-4 py-3 text-right
-                           font-semibold ${changeClass}">
-                    ${changeText}
-                </td>
-
-            </tr>
         `;
 
-    }).join('');
+        return;
+
+    }
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | PREVENT SAME SESSION
+    |--------------------------------------------------------------------------
+    */
+
+    if (
+        itemA.equipmentId ===
+        itemB.equipmentId
+        &&
+        itemA.historyIndex ===
+        itemB.historyIndex
+    ) {
+
+        result.innerHTML = `
+
+            <div class="bg-yellow-50
+                        border border-yellow-200
+                        rounded-xl p-5
+                        text-center text-yellow-700
+                        text-sm">
+
+                Please select two different
+                inspection sessions.
+
+            </div>
+
+        `;
+
+        return;
+
+    }
+
+
+    const sessionA =
+        itemA.session;
+
+    const sessionB =
+        itemB.session;
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | MEASUREMENT MAP
+    |--------------------------------------------------------------------------
+    |
+    | All points are included.
+    |
+    | If a point exists only in A or only in B,
+    | it will still appear in the table.
+    |
+    */
+
+    const measurementsA =
+        Array.isArray(
+            sessionA.measurements
+        )
+            ? sessionA.measurements
+            : [];
+
+
+    const measurementsB =
+        Array.isArray(
+            sessionB.measurements
+        )
+            ? sessionB.measurements
+            : [];
+
+
+    const mapA =
+        new Map(
+            measurementsA.map(function (measurement) {
+
+                return [
+                    `${measurement.point}|${measurement.direction}`,
+                    measurement
+                ];
+
+            })
+        );
+
+
+    const mapB =
+        new Map(
+            measurementsB.map(function (measurement) {
+
+                return [
+                    `${measurement.point}|${measurement.direction}`,
+                    measurement
+                ];
+
+            })
+        );
+
+
+    const keys =
+        [
+            ...new Set([
+                ...mapA.keys(),
+                ...mapB.keys()
+            ])
+        ];
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | BUILD COMPARISON ROWS
+    |--------------------------------------------------------------------------
+    */
+
+    const comparisonRows =
+        keys.map(function (key) {
+
+            const a =
+                mapA.get(key);
+
+
+            const b =
+                mapB.get(key);
+
+
+            const valueA =
+                a?.overall !== null &&
+                a?.overall !== undefined
+                    ? convertVibrationValue(
+                        a.overall,
+                        a.unit || 'mm/s RMS'
+                    )
+                    : null;
+
+
+            const valueB =
+                b?.overall !== null &&
+                b?.overall !== undefined
+                    ? convertVibrationValue(
+                        b.overall,
+                        b.unit || 'mm/s RMS'
+                    )
+                    : null;
+
+
+            let delta =
+                null;
+
+            let deltaPercent =
+                null;
+
+
+            if (
+                valueA !== null &&
+                valueB !== null
+            ) {
+
+                delta =
+                    valueB - valueA;
+
+
+                if (valueA !== 0) {
+
+                    deltaPercent =
+                        (
+                            delta /
+                            valueA
+                        ) * 100;
+
+                }
+
+            }
+
+
+            const deltaClass =
+                delta === null
+                    ? 'text-gray-400'
+                    : delta > 0
+                        ? 'text-red-600'
+                        : delta < 0
+                            ? 'text-green-600'
+                            : 'text-gray-500';
+
+
+            const deltaText =
+                delta === null
+                    ? '-'
+                    : `${
+                        delta > 0
+                            ? '+'
+                            : ''
+                    }${delta.toFixed(2)}
+                    ${vibrationDisplayUnit}`;
+
+
+            const deltaPercentText =
+                deltaPercent === null
+                    ? '-'
+                    : `${
+                        deltaPercent > 0
+                            ? '+'
+                            : ''
+                    }${deltaPercent.toFixed(1)}%`;
+
+
+            const point =
+                a?.point ||
+                b?.point ||
+                '-';
+
+
+            const direction =
+                a?.direction ||
+                b?.direction ||
+                '-';
+
+
+            const severityA =
+                a?.severity ||
+                'Pending';
+
+
+            const severityB =
+                b?.severity ||
+                'Pending';
+
+
+            return `
+
+                <tr class="border-t border-gray-100">
+
+                    <td class="px-4 py-3
+                               font-semibold
+                               text-[#0F2D5C]
+                               whitespace-nowrap">
+
+                        ${escapeHtml(point)}
+
+                    </td>
+
+
+                    <td class="px-4 py-3
+                               text-gray-600
+                               whitespace-nowrap">
+
+                        ${escapeHtml(direction)}
+
+                    </td>
+
+
+                    <td class="px-4 py-3
+                               text-right
+                               font-semibold
+                               text-[#0F2D5C]
+                               whitespace-nowrap">
+
+                        ${
+                            valueA !== null
+                                ? `${valueA.toFixed(2)}
+                                   ${escapeHtml(
+                                       vibrationDisplayUnit
+                                   )}`
+                                : '-'
+                        }
+
+                    </td>
+
+
+                    <td class="px-4 py-3
+                               text-center">
+
+                        ${
+                            a
+                                ? severityBadge(
+                                    severityA
+                                )
+                                : '<span class="text-gray-400">-</span>'
+                        }
+
+                    </td>
+
+
+                    <td class="px-4 py-3
+                               text-right
+                               font-semibold
+                               text-[#0F2D5C]
+                               whitespace-nowrap">
+
+                        ${
+                            valueB !== null
+                                ? `${valueB.toFixed(2)}
+                                   ${escapeHtml(
+                                       vibrationDisplayUnit
+                                   )}`
+                                : '-'
+                        }
+
+                    </td>
+
+
+                    <td class="px-4 py-3
+                               text-center">
+
+                        ${
+                            b
+                                ? severityBadge(
+                                    severityB
+                                )
+                                : '<span class="text-gray-400">-</span>'
+                        }
+
+                    </td>
+
+
+                    <td class="px-4 py-3
+                               text-right
+                               font-semibold
+                               ${deltaClass}
+                               whitespace-nowrap">
+
+                        ${deltaText}
+
+                    </td>
+
+
+                    <td class="px-4 py-3
+                               text-right
+                               font-semibold
+                               ${deltaClass}
+                               whitespace-nowrap">
+
+                        ${deltaPercentText}
+
+                    </td>
+
+                </tr>
+
+            `;
+
+        }).join('');
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | HIGHLIGHT SUMMARY
+    |--------------------------------------------------------------------------
+    */
+
+    const comparableRows =
+        keys.map(function (key) {
+
+            const a =
+                mapA.get(key);
+
+            const b =
+                mapB.get(key);
+
+
+            if (
+                a?.overall === null ||
+                a?.overall === undefined ||
+                b?.overall === null ||
+                b?.overall === undefined
+            ) {
+                return null;
+            }
+
+
+            const valueA =
+                convertVibrationValue(
+                    a.overall,
+                    a.unit || 'mm/s RMS'
+                );
+
+
+            const valueB =
+                convertVibrationValue(
+                    b.overall,
+                    b.unit || 'mm/s RMS'
+                );
+
+
+            const delta =
+                valueB - valueA;
+
+
+            const percent =
+                valueA !== 0
+                    ? (
+                        delta /
+                        valueA
+                    ) * 100
+                    : null;
+
+
+            return {
+                point:
+                    a?.point ||
+                    b?.point ||
+                    '-',
+
+                direction:
+                    a?.direction ||
+                    b?.direction ||
+                    '-',
+
+                valueA:
+                    valueA,
+
+                valueB:
+                    valueB,
+
+                delta:
+                    delta,
+
+                percent:
+                    percent
+
+            };
+
+        }).filter(Boolean);
+
+
+    const highestIncrease =
+        comparableRows
+            .filter(row => row.delta > 0)
+            .sort(
+                (a, b) =>
+                    b.percent - a.percent
+            )[0] || null;
+
+
+    const highestDecrease =
+        comparableRows
+            .filter(row => row.delta < 0)
+            .sort(
+                (a, b) =>
+                    a.percent - b.percent
+            )[0] || null;
 
 
     result.innerHTML = `
 
-        {{-- SESSION CARDS --}}
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        {{-- ================================================= --}}
+        {{-- DETAIL CARDS --}}
+        {{-- ================================================= --}}
 
-            ${comparisonSessionCard(itemA, 'Measurement A')}
+        <div class="grid grid-cols-1
+                    lg:grid-cols-2 gap-5">
 
-            ${comparisonSessionCard(itemB, 'Measurement B')}
+            ${comparisonSessionCard(
+                itemA,
+                'Measurement A'
+            )}
+
+            ${comparisonSessionCard(
+                itemB,
+                'Measurement B'
+            )}
 
         </div>
 
 
+        {{-- ================================================= --}}
+        {{-- HIGHLIGHT --}}
+        {{-- ================================================= --}}
+
+        <div class="mt-5
+                    grid grid-cols-1
+                    md:grid-cols-3 gap-3">
+
+            <div class="bg-slate-50
+                        border border-slate-200
+                        rounded-xl p-4">
+
+                <p class="text-xs uppercase
+                          tracking-wide
+                          text-gray-400">
+                    Measurement Coverage
+                </p>
+
+                <p class="text-lg font-bold
+                          text-[#0F2D5C] mt-1">
+
+                    ${measurementsA.length}
+                    vs
+                    ${measurementsB.length}
+                    points
+
+                </p>
+
+            </div>
+
+
+            <div class="bg-slate-50
+                        border border-slate-200
+                        rounded-xl p-4">
+
+                <p class="text-xs uppercase
+                          tracking-wide
+                          text-gray-400">
+                    Highest Increase
+                </p>
+
+                ${
+                    highestIncrease
+                        ? `
+                            <p class="font-bold
+                                      text-red-600 mt-1">
+
+                                ${escapeHtml(
+                                    highestIncrease.point
+                                )}
+                                -
+                                ${escapeHtml(
+                                    highestIncrease.direction
+                                )}
+
+                            </p>
+
+                            <p class="text-xs
+                                      text-gray-500 mt-1">
+
+                                +${highestIncrease.percent.toFixed(1)}%
+
+                            </p>
+                          `
+                        : `
+                            <p class="font-semibold
+                                      text-gray-400 mt-1">
+                                -
+                            </p>
+                          `
+                }
+
+            </div>
+
+
+            <div class="bg-slate-50
+                        border border-slate-200
+                        rounded-xl p-4">
+
+                <p class="text-xs uppercase
+                          tracking-wide
+                          text-gray-400">
+                    Highest Decrease
+                </p>
+
+                ${
+                    highestDecrease
+                        ? `
+                            <p class="font-bold
+                                      text-green-600 mt-1">
+
+                                ${escapeHtml(
+                                    highestDecrease.point
+                                )}
+                                -
+                                ${escapeHtml(
+                                    highestDecrease.direction
+                                )}
+
+                            </p>
+
+                            <p class="text-xs
+                                      text-gray-500 mt-1">
+
+                                ${highestDecrease.percent.toFixed(1)}%
+
+                            </p>
+                          `
+                        : `
+                            <p class="font-semibold
+                                      text-gray-400 mt-1">
+                                -
+                            </p>
+                          `
+                }
+
+            </div>
+
+        </div>
+
+
+        {{-- ================================================= --}}
         {{-- POINT COMPARISON --}}
-        <div class="mt-6 border border-gray-200
+        {{-- ================================================= --}}
+
+        <div class="mt-6
+                    border border-gray-200
                     rounded-xl overflow-hidden">
 
-            <div class="bg-gray-50 px-5 py-4">
+            <div class="bg-gray-50
+                        px-5 py-4">
 
-                <h3 class="font-bold text-[#0F2D5C]">
+                <h3 class="font-bold
+                           text-[#0F2D5C]">
+
                     Measurement Comparison
+
                 </h3>
 
                 <p class="text-sm text-gray-500 mt-1">
-                    Overall vibration comparison by measurement point
+
+                    Overall vibration comparison
+                    by measurement point
+
                 </p>
 
             </div>
@@ -1607,32 +2343,175 @@ function renderComparison() {
 
                         <tr>
 
-                            <th class="px-4 py-3 text-left">
+                            <th rowspan="2"
+                                class="px-4 py-3
+                                       text-left
+                                       whitespace-nowrap">
+
                                 Point
+
                             </th>
 
-                            <th class="px-4 py-3 text-left">
+
+                            <th rowspan="2"
+                                class="px-4 py-3
+                                       text-left
+                                       whitespace-nowrap">
+
                                 Direction
+
                             </th>
 
-                            <th class="px-4 py-3 text-right">
-                                ${escapeHtml(itemA.equipmentName)}
+
+                            <th colspan="2"
+                                class="px-4 py-2
+                                       text-center
+                                       border-l
+                                       border-gray-200">
+
+                                <div class="font-semibold
+                                            text-[#0F2D5C]">
+
+                                    A · ${escapeHtml(
+                                        itemA.equipmentName
+                                    )}
+
+                                </div>
+
+                                <div class="text-xs
+                                            text-gray-500
+                                            font-normal mt-0.5">
+
+                                    ${escapeHtml(
+                                        formatDateOnly(
+                                            sessionA.inspectionDate
+                                        )
+                                    )}
+
+                                </div>
+
                             </th>
 
-                            <th class="px-4 py-3 text-right">
-                                ${escapeHtml(itemB.equipmentName)}
+
+                            <th colspan="2"
+                                class="px-4 py-2
+                                       text-center
+                                       border-l
+                                       border-gray-200">
+
+                                <div class="font-semibold
+                                            text-[#0F2D5C]">
+
+                                    B · ${escapeHtml(
+                                        itemB.equipmentName
+                                    )}
+
+                                </div>
+
+                                <div class="text-xs
+                                            text-gray-500
+                                            font-normal mt-0.5">
+
+                                    ${escapeHtml(
+                                        formatDateOnly(
+                                            sessionB.inspectionDate
+                                        )
+                                    )}
+
+                                </div>
+
                             </th>
 
-                            <th class="px-4 py-3 text-right">
-                                Change
+
+                            <th rowspan="2"
+                                class="px-4 py-3
+                                       text-right
+                                       whitespace-nowrap
+                                       border-l
+                                       border-gray-200">
+
+                                Δ Value
+
+                            </th>
+
+
+                            <th rowspan="2"
+                                class="px-4 py-3
+                                       text-right
+                                       whitespace-nowrap">
+
+                                Δ %
+
+                            </th>
+
+                        </tr>
+
+
+                        <tr class="border-t
+                                   border-gray-100">
+
+                            <th class="px-4 py-2
+                                       text-right
+                                       text-xs
+                                       text-gray-500">
+
+                                Overall
+
+                            </th>
+
+
+                            <th class="px-4 py-2
+                                       text-center
+                                       text-xs
+                                       text-gray-500">
+
+                                Severity
+
+                            </th>
+
+
+                            <th class="px-4 py-2
+                                       text-right
+                                       text-xs
+                                       text-gray-500">
+
+                                Overall
+
+                            </th>
+
+
+                            <th class="px-4 py-2
+                                       text-center
+                                       text-xs
+                                       text-gray-500">
+
+                                Severity
+
                             </th>
 
                         </tr>
 
                     </thead>
 
+
                     <tbody>
-                        ${comparisonRows}
+
+                        ${
+                            comparisonRows ||
+                            `
+                                <tr>
+                                    <td colspan="8"
+                                        class="px-4 py-8
+                                               text-center
+                                               text-gray-400">
+
+                                        No measurement data available.
+
+                                    </td>
+                                </tr>
+                            `
+                        }
+
                     </tbody>
 
                 </table>
@@ -1641,23 +2520,95 @@ function renderComparison() {
 
         </div>
 
+
+        {{-- ================================================= --}}
+        {{-- VIBRATION TREND --}}
+        {{-- ================================================= --}}
+
+        <div class="mt-6
+                    border border-gray-200
+                    rounded-xl overflow-hidden">
+
+            <div class="bg-gray-50
+                        px-5 py-4">
+
+                <h3 class="font-bold
+                           text-[#0F2D5C]">
+
+                    Vibration Trend Comparison
+
+                </h3>
+
+                <p class="text-sm text-gray-500 mt-1">
+
+                    Selected inspection sessions
+                    plotted by measurement timestamp
+
+                </p>
+
+            </div>
+
+
+            <div class="p-5">
+
+                <div class="w-full h-[340px]">
+
+                    <canvas id="comparisonTrendChart"></canvas>
+
+                </div>
+
+            </div>
+
+        </div>
+
     `;
+
+
+    renderComparisonTrend(
+        itemA,
+        itemB
+    );
+
 }
 
 
-function comparisonSessionCard(item, label) {
+/*
+|--------------------------------------------------------------------------
+| COMPARISON DETAIL CARD
+|--------------------------------------------------------------------------
+*/
 
-    const session = item.session;
+function comparisonSessionCard(
+    item,
+    label
+) {
+
+    const session =
+        item.session;
 
 
     const highest =
         session.highestOverall !== null &&
         session.highestOverall !== undefined
-            ? velocityToInch(
+            ? convertVibrationValue(
                 session.highestOverall,
                 'mm/s RMS'
             )
             : null;
+
+
+    const highestPoint =
+        session.highestPoint
+            ? `${escapeHtml(
+                session.highestPoint
+            )}${
+                session.highestDirection
+                    ? ` - ${escapeHtml(
+                        session.highestDirection
+                    )}`
+                    : ''
+            }`
+            : '-';
 
 
     return `
@@ -1665,60 +2616,96 @@ function comparisonSessionCard(item, label) {
         <div class="border border-gray-200
                     rounded-xl p-5">
 
-            <div class="flex items-center justify-between gap-3">
+            <div class="flex items-center
+                        justify-between gap-3">
 
                 <div>
 
-                    <p class="text-xs uppercase tracking-wide
-                              text-gray-400 font-semibold">
+                    <p class="text-xs uppercase
+                              tracking-wide
+                              text-gray-400
+                              font-semibold">
+
                         ${label}
+
                     </p>
+
 
                     <h3 class="text-lg font-bold
                                text-[#0F2D5C] mt-1">
-                        ${escapeHtml(item.equipmentName)}
+
+                        ${escapeHtml(
+                            item.equipmentName
+                        )}
+
                     </h3>
 
+
                     <p class="text-sm text-gray-500 mt-1">
-                        ${escapeHtml(item.area || '-')}
+
+                        ${escapeHtml(
+                            item.area || '-'
+                        )}
                         ·
                         ${escapeHtml(
-                            formatDateOnly(session.inspectionDate)
+                            formatDateOnly(
+                                session.inspectionDate
+                            )
                         )}
+
                     </p>
 
                 </div>
 
-                ${severityBadge(session.severity)}
+
+                ${severityBadge(
+                    session.severity
+                )}
 
             </div>
 
 
-            <div class="grid grid-cols-2 gap-3 mt-5">
+            <div class="grid grid-cols-2
+                        md:grid-cols-3 gap-3 mt-5">
 
                 ${summaryCard(
                     'Highest Overall',
                     highest !== null
-                        ? `${highest.toFixed(2)} inch/s RMS`
+                        ? `${highest.toFixed(2)}
+                           ${escapeHtml(
+                               vibrationDisplayUnit
+                           )}`
                         : '-'
                 )}
 
+
                 ${summaryCard(
                     'Highest Point',
-                    `${escapeHtml(session.highestPoint || '-')}
-                     ${session.highestDirection
-                        ? `- ${escapeHtml(session.highestDirection)}`
-                        : ''}`
+                    highestPoint
                 )}
+
 
                 ${summaryCard(
                     'Measurement Points',
                     `${session.measurementCount || 0} points`
                 )}
 
+
                 ${summaryCard(
                     'Inspector',
-                    escapeHtml(session.inspector || '-')
+                    escapeHtml(
+                        session.inspector || '-'
+                    )
+                )}
+
+
+                ${summaryCard(
+                    'Inspection Date',
+                    escapeHtml(
+                        formatDateOnly(
+                            session.inspectionDate
+                        )
+                    )
                 )}
 
             </div>
@@ -1726,6 +2713,306 @@ function comparisonSessionCard(item, label) {
         </div>
 
     `;
+
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| COMPARISON TREND CHART
+|--------------------------------------------------------------------------
+*/
+
+let comparisonTrendChart =
+    null;
+
+
+function renderComparisonTrend(
+    itemA,
+    itemB
+) {
+
+    const canvas =
+        document.getElementById(
+            'comparisonTrendChart'
+        );
+
+
+    if (!canvas) {
+        return;
+    }
+
+
+    if (comparisonTrendChart) {
+
+        comparisonTrendChart.destroy();
+
+        comparisonTrendChart =
+            null;
+
+    }
+
+
+    const measurementsA =
+        (itemA.session.measurements || [])
+            .filter(function (measurement) {
+
+                return (
+                    measurement.overall !== null &&
+                    measurement.overall !== undefined &&
+                    measurement.datetime
+                );
+
+            });
+
+
+    const measurementsB =
+        (itemB.session.measurements || [])
+            .filter(function (measurement) {
+
+                return (
+                    measurement.overall !== null &&
+                    measurement.overall !== undefined &&
+                    measurement.datetime
+                );
+
+            });
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | Since A and B can be different equipment,
+    | plot each inspection session as its own
+    | point on the comparison trend.
+    |--------------------------------------------------------------------------
+    */
+
+    const highestA =
+        measurementsA.length
+            ? measurementsA.reduce(
+                function (max, measurement) {
+
+                    return Number(
+                        measurement.overall
+                    ) > Number(
+                        max.overall
+                    )
+                        ? measurement
+                        : max;
+
+                }
+            )
+            : null;
+
+
+    const highestB =
+        measurementsB.length
+            ? measurementsB.reduce(
+                function (max, measurement) {
+
+                    return Number(
+                        measurement.overall
+                    ) > Number(
+                        max.overall
+                    )
+                        ? measurement
+                        : max;
+
+                }
+            )
+            : null;
+
+
+    const labels = [
+        `${itemA.equipmentName} · ${formatDateOnly(itemA.session.inspectionDate)}`,
+        `${itemB.equipmentName} · ${formatDateOnly(itemB.session.inspectionDate)}`
+    ];
+
+
+    const dataA = [
+        highestA
+            ? convertVibrationValue(
+                highestA.overall,
+                highestA.unit || 'mm/s RMS'
+            )
+            : null,
+        null
+    ];
+
+
+    const dataB = [
+        null,
+        highestB
+            ? convertVibrationValue(
+                highestB.overall,
+                highestB.unit || 'mm/s RMS'
+            )
+            : null
+    ];
+
+
+    const ctx =
+        canvas.getContext('2d');
+
+
+    comparisonTrendChart =
+        new Chart(
+            ctx,
+            {
+
+                type: 'line',
+
+                data: {
+
+                    labels: labels,
+
+                    datasets: [
+
+                        {
+                            label:
+                                `A · ${itemA.equipmentName}`,
+
+                            data:
+                                dataA,
+
+                            borderWidth: 2,
+
+                            pointRadius: 6,
+
+                            pointHoverRadius: 8,
+
+                            tension: 0.2,
+
+                            fill: false
+
+                        },
+
+
+                        {
+                            label:
+                                `B · ${itemB.equipmentName}`,
+
+                            data:
+                                dataB,
+
+                            borderWidth: 2,
+
+                            pointRadius: 6,
+
+                            pointHoverRadius: 8,
+
+                            tension: 0.2,
+
+                            fill: false
+
+                        }
+
+                    ]
+
+                },
+
+
+                options: {
+
+                    responsive: true,
+
+                    maintainAspectRatio: false,
+
+
+                    plugins: {
+
+                        legend: {
+                            display: true
+                        },
+
+
+                        tooltip: {
+
+                            callbacks: {
+
+                                title:
+                                    function (
+                                        tooltipItems
+                                    ) {
+
+                                        return (
+                                            tooltipItems[0]
+                                                ?.label ||
+                                            '-'
+                                        );
+
+                                    },
+
+
+                                label:
+                                    function (
+                                        context
+                                    ) {
+
+                                        const value =
+                                            context.parsed.y;
+
+
+                                        return (
+                                            context.dataset.label +
+                                            ': ' +
+                                            (
+                                                Number.isFinite(
+                                                    value
+                                                )
+                                                    ? value.toFixed(2)
+                                                    : '-'
+                                            ) +
+                                            ' ' +
+                                            vibrationDisplayUnit
+                                        );
+
+                                    }
+
+                            }
+
+                        }
+
+                    },
+
+
+                    scales: {
+
+                        y: {
+
+                            beginAtZero: true,
+
+                            title: {
+
+                                display: true,
+
+                                text:
+                                    vibrationDisplayUnit
+
+                            }
+
+                        },
+
+                        x: {
+
+                            title: {
+
+                                display: true,
+
+                                text:
+                                    'Inspection Session'
+
+                            }
+
+                        }
+
+                    }
+
+                }
+
+            }
+        );
+
 }
 
 function openEquipmentDetail(equipmentId) {
@@ -3081,54 +4368,92 @@ document.addEventListener('keydown', function (event) {
                             tooltip: {
 
                                 callbacks: {
+    title: function(tooltipItems) {
 
-                                    title:
-                                        function (
-                                            tooltipItems
-                                        ) {
+        const index = tooltipItems[0]?.dataIndex;
 
-                                            const index =
-                                                tooltipItems[0]
-                                                    .dataIndex;
+        if (
+            index === undefined ||
+            !trendLabels[index]
+        ) {
+            return '-';
+        }
 
+        const timestamp =
+            trendLabels[index];
 
-                                            const date =
-                                                trendLabels[index]
-                                                ?? '-';
+        const date =
+            new Date(timestamp);
 
+        if (isNaN(date.getTime())) {
+            return timestamp;
+        }
 
-                                            const timestamp =
-                                                String(
-                                                    trendTimestamps[index]
-                                                    ?? ''
-                                                )
-                                                .replace(
-                                                    'T',
-                                                    ' '
-                                                );
+        return date.toLocaleDateString(
+            'en-GB',
+            {
+                day: '2-digit',
+                month: 'short',
+                year: 'numeric'
+            }
+        );
 
+    },
 
-                                            /*
-                                            | Do NOT use new Date()
-                                            | because measurement_datetime
-                                            | is already local site time.
-                                            */
+    beforeBody: function(tooltipItems) {
 
-                                            const time =
-                                                timestamp.length >= 19
-                                                    ? timestamp.substring(
-                                                        11,
-                                                        19
-                                                    )
-                                                    : '-';
+        const index =
+            tooltipItems[0]?.dataIndex;
 
+        if (
+            index === undefined ||
+            !trendLabels[index]
+        ) {
+            return [];
+        }
 
-                                            return [
-                                                date,
-                                                'Time: ' + time
-                                            ];
+        const date =
+            new Date(
+                trendLabels[index]
+            );
 
-                                        },
+        if (isNaN(date.getTime())) {
+            return [];
+        }
+
+        return [
+            'Time: ' +
+            date.toLocaleTimeString(
+                'en-GB',
+                {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit'
+                }
+            )
+        ];
+
+    },
+
+    label: function(context) {
+
+        const value =
+            context.parsed.y;
+
+        return (
+            context.dataset.label +
+            ': ' +
+            (
+                Number.isFinite(value)
+                    ? value.toFixed(2)
+                    : '-'
+            ) +
+            ' ' +
+            vibrationDisplayUnit
+        );
+
+    }
+},
 
 
                                     label:
