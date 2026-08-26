@@ -596,10 +596,13 @@
                 </p>
 
                 @if(!empty($currentTrendTimestamp))
-                    <p class="text-xs text-gray-400 mt-1">
-                        {{ date('d M Y H:i:s', strtotime($currentTrendTimestamp)) }}
-                    </p>
-                @endif
+    <p class="text-xs text-gray-400 mt-1">
+        {{ date('d M Y', strtotime($currentTrendTimestamp)) }}
+    </p>
+    <p class="text-xs text-gray-400">
+        {{ date('H:i:s', strtotime($currentTrendTimestamp)) }}
+    </p>
+@endif
 
             </div>
 
@@ -620,10 +623,13 @@
                 </p>
 
                 @if(!empty($previousTrendTimestamp))
-                    <p class="text-xs text-gray-400 mt-1">
-                        {{ date('d M Y H:i:s', strtotime($previousTrendTimestamp)) }}
-                    </p>
-                @endif
+    <p class="text-xs text-gray-400 mt-1">
+        {{ date('d M Y', strtotime($previousTrendTimestamp)) }}
+    </p>
+    <p class="text-xs text-gray-400">
+        {{ date('H:i:s', strtotime($previousTrendTimestamp)) }}
+    </p>
+@endif
 
             </div>
 
@@ -819,19 +825,35 @@
     {{-- EQUIPMENT CONDITION BY AREA --}}
     {{-- ========================================================= --}}
 
-    <div class="bg-white rounded-2xl shadow-sm p-8">
+    <div class="mb-6 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
 
-        <div class="mb-6">
+    <div>
+        <h2 class="text-2xl font-bold text-[#0F2D5C]">
+            Equipment Condition by Area
+        </h2>
 
-            <h2 class="text-2xl font-bold text-[#0F2D5C]">
-                Equipment Condition by Area
-            </h2>
+        <p class="text-gray-500 mt-1">
+            Latest condition of each equipment grouped by area
+        </p>
+    </div>
 
-            <p class="text-gray-500 mt-1">
-                Latest condition of each equipment grouped by area
-            </p>
+    {{-- COMPARISON BUTTON --}}
+    <button
+        type="button"
+        onclick="openComparisonModal()"
+        class="inline-flex items-center justify-center gap-2
+               px-4 py-2.5 rounded-xl
+               bg-[#0F2D5C] text-white
+               hover:bg-blue-900
+               transition shadow-sm
+               text-sm font-semibold
+               whitespace-nowrap"
+    >
+        <span>⇄</span>
+        Compare Measurements
+    </button>
 
-        </div>
+</div>
 
 
         @if($equipmentConditions->count())
@@ -988,6 +1010,126 @@
 
 </div>
 
+{{-- ========================================================= --}}
+{{-- MEASUREMENT COMPARISON MODAL --}}
+{{-- ========================================================= --}}
+
+<div
+    id="comparisonModal"
+    class="fixed inset-0 z-[60] hidden"
+    aria-hidden="true"
+>
+    <div
+        class="absolute inset-0 bg-black/50"
+        onclick="closeComparisonModal()"
+    ></div>
+
+    <div class="relative min-h-screen flex items-center justify-center p-4">
+
+        <div
+            class="relative bg-white w-full max-w-6xl
+                   max-h-[92vh] rounded-2xl shadow-2xl
+                   overflow-hidden"
+        >
+
+            {{-- HEADER --}}
+            <div class="px-6 py-5 border-b border-gray-200
+                        flex items-start justify-between gap-4">
+
+                <div>
+                    <p class="text-xs uppercase tracking-[0.18em]
+                              text-gray-400 font-semibold">
+                        CBM Analysis
+                    </p>
+
+                    <h2 class="text-xl font-bold text-[#0F2D5C] mt-1">
+                        Measurement Comparison
+                    </h2>
+
+                    <p class="text-sm text-gray-500 mt-1">
+                        Compare two inspection sessions from any equipment and date.
+                    </p>
+                </div>
+
+                <button
+                    type="button"
+                    onclick="closeComparisonModal()"
+                    class="w-9 h-9 rounded-full
+                           hover:bg-gray-100 text-gray-500
+                           text-xl leading-none"
+                >
+                    &times;
+                </button>
+
+            </div>
+
+
+            {{-- BODY --}}
+            <div class="p-6 overflow-y-auto max-h-[calc(92vh-100px)]">
+
+                {{-- SESSION SELECTOR --}}
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
+
+                    <div class="bg-gray-50 rounded-xl border border-gray-200 p-5">
+
+                        <p class="text-xs uppercase tracking-wide
+                                  text-gray-400 font-semibold">
+                            Measurement A
+                        </p>
+
+                        <select
+                            id="comparisonSessionA"
+                            onchange="renderComparison()"
+                            class="mt-3 w-full rounded-lg border
+                                   border-gray-300 bg-white px-3 py-2.5
+                                   text-sm text-[#0F2D5C]"
+                        >
+                            <option value="">
+                                Select inspection session
+                            </option>
+                        </select>
+
+                    </div>
+
+
+                    <div class="bg-gray-50 rounded-xl border border-gray-200 p-5">
+
+                        <p class="text-xs uppercase tracking-wide
+                                  text-gray-400 font-semibold">
+                            Measurement B
+                        </p>
+
+                        <select
+                            id="comparisonSessionB"
+                            onchange="renderComparison()"
+                            class="mt-3 w-full rounded-lg border
+                                   border-gray-300 bg-white px-3 py-2.5
+                                   text-sm text-[#0F2D5C]"
+                        >
+                            <option value="">
+                                Select inspection session
+                            </option>
+                        </select>
+
+                    </div>
+
+                </div>
+
+
+                {{-- COMPARISON RESULT --}}
+                <div id="comparisonResult" class="mt-6">
+                    <div class="bg-gray-50 rounded-xl p-8
+                                text-center text-gray-400">
+                        Select two inspection sessions to compare.
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+
+    </div>
+</div>
 
 {{-- ========================================================= --}}
 {{-- EQUIPMENT MEASUREMENT DETAIL MODAL --}}
@@ -1134,6 +1276,457 @@ const currentUserIsAdmin = @json(auth()->user()?->isAdmin() ?? false);
 
 let activeEquipmentData = null;
 let activeHistoryIndex = null;
+let comparisonSessions = [];
+
+
+function openComparisonModal() {
+
+    const modal = document.getElementById('comparisonModal');
+
+    if (!modal) {
+        return;
+    }
+
+    comparisonSessions = [];
+
+    Object.entries(equipmentDetailData).forEach(
+        ([equipmentId, equipment]) => {
+
+            (equipment.history || []).forEach(
+                (session, historyIndex) => {
+
+                    comparisonSessions.push({
+                        key: `${equipmentId}_${historyIndex}`,
+                        equipmentId: equipmentId,
+                        equipmentName: equipment.name,
+                        area: equipment.area,
+                        historyIndex: historyIndex,
+                        session: session
+                    });
+
+                }
+            );
+
+        }
+    );
+
+
+    const selectA =
+        document.getElementById('comparisonSessionA');
+
+    const selectB =
+        document.getElementById('comparisonSessionB');
+
+
+    const options = comparisonSessions.map(item => {
+
+        const date =
+            formatDateOnly(item.session.inspectionDate);
+
+        const highest =
+            formatVelocityInline(
+                item.session.highestOverall,
+                'mm/s RMS'
+            );
+
+        return `
+            <option value="${escapeHtml(item.key)}">
+                ${escapeHtml(item.equipmentName)}
+                · ${escapeHtml(date)}
+                · Highest ${highest.replace(/<[^>]*>/g, '')}
+            </option>
+        `;
+
+    }).join('');
+
+
+    selectA.innerHTML =
+        `<option value="">Select inspection session</option>${options}`;
+
+    selectB.innerHTML =
+        `<option value="">Select inspection session</option>${options}`;
+
+
+    document.getElementById('comparisonResult').innerHTML = `
+        <div class="bg-gray-50 rounded-xl p-8
+                    text-center text-gray-400">
+            Select two inspection sessions to compare.
+        </div>
+    `;
+
+
+    modal.classList.remove('hidden');
+    modal.setAttribute('aria-hidden', 'false');
+
+    document.body.classList.add('overflow-hidden');
+}
+
+
+function closeComparisonModal() {
+
+    const modal =
+        document.getElementById('comparisonModal');
+
+    if (!modal) {
+        return;
+    }
+
+    modal.classList.add('hidden');
+    modal.setAttribute('aria-hidden', 'true');
+
+    document.body.classList.remove('overflow-hidden');
+}
+
+
+function getComparisonSession(key) {
+
+    return comparisonSessions.find(
+        item => item.key === key
+    ) || null;
+}
+
+
+function renderComparison() {
+
+    const keyA =
+        document.getElementById('comparisonSessionA')?.value;
+
+    const keyB =
+        document.getElementById('comparisonSessionB')?.value;
+
+    const result =
+        document.getElementById('comparisonResult');
+
+
+    if (!keyA || !keyB) {
+
+        result.innerHTML = `
+            <div class="bg-gray-50 rounded-xl p-8
+                        text-center text-gray-400">
+                Select two inspection sessions to compare.
+            </div>
+        `;
+
+        return;
+    }
+
+
+    if (keyA === keyB) {
+
+        result.innerHTML = `
+            <div class="bg-yellow-50 border border-yellow-200
+                        rounded-xl p-5 text-center
+                        text-yellow-700 text-sm">
+                Please select two different inspection sessions.
+            </div>
+        `;
+
+        return;
+    }
+
+
+    const itemA = getComparisonSession(keyA);
+    const itemB = getComparisonSession(keyB);
+
+
+    if (!itemA || !itemB) {
+        return;
+    }
+
+
+    const sessionA = itemA.session;
+    const sessionB = itemB.session;
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | MATCH MEASUREMENT POINTS
+    |--------------------------------------------------------------------------
+    */
+
+    const measurementsA =
+        sessionA.measurements || [];
+
+    const measurementsB =
+        sessionB.measurements || [];
+
+
+    const mapA = new Map(
+        measurementsA.map(m => [
+            `${m.point}|${m.direction}`,
+            m
+        ])
+    );
+
+
+    const mapB = new Map(
+        measurementsB.map(m => [
+            `${m.point}|${m.direction}`,
+            m
+        ])
+    );
+
+
+    const keys = [
+        ...new Set([
+            ...mapA.keys(),
+            ...mapB.keys()
+        ])
+    ];
+
+
+    const comparisonRows = keys.map(key => {
+
+        const a = mapA.get(key);
+        const b = mapB.get(key);
+
+
+        const valueA =
+            a?.overall !== null &&
+            a?.overall !== undefined
+                ? velocityToInch(
+                    a.overall,
+                    a.unit || 'mm/s RMS'
+                )
+                : null;
+
+
+        const valueB =
+            b?.overall !== null &&
+            b?.overall !== undefined
+                ? velocityToInch(
+                    b.overall,
+                    b.unit || 'mm/s RMS'
+                )
+                : null;
+
+
+        let change = null;
+
+        if (
+            valueA !== null &&
+            valueB !== null &&
+            valueA !== 0
+        ) {
+            change =
+                ((valueB - valueA) / valueA) * 100;
+        }
+
+
+        const changeClass =
+            change === null
+                ? 'text-gray-400'
+                : change > 0
+                    ? 'text-red-600'
+                    : change < 0
+                        ? 'text-green-600'
+                        : 'text-gray-500';
+
+
+        const changeText =
+            change === null
+                ? '-'
+                : `${change > 0 ? '+' : ''}${change.toFixed(1)}%`;
+
+
+        return `
+            <tr class="border-t border-gray-100">
+
+                <td class="px-4 py-3 font-semibold
+                           text-[#0F2D5C] whitespace-nowrap">
+                    ${escapeHtml(a?.point || b?.point || '-')}
+                </td>
+
+                <td class="px-4 py-3 text-gray-600">
+                    ${escapeHtml(a?.direction || b?.direction || '-')}
+                </td>
+
+                <td class="px-4 py-3 text-right
+                           font-semibold text-[#0F2D5C]">
+                    ${
+                        valueA !== null
+                            ? `${valueA.toFixed(2)} inch/s RMS`
+                            : '-'
+                    }
+                </td>
+
+                <td class="px-4 py-3 text-right
+                           font-semibold text-[#0F2D5C]">
+                    ${
+                        valueB !== null
+                            ? `${valueB.toFixed(2)} inch/s RMS`
+                            : '-'
+                    }
+                </td>
+
+                <td class="px-4 py-3 text-right
+                           font-semibold ${changeClass}">
+                    ${changeText}
+                </td>
+
+            </tr>
+        `;
+
+    }).join('');
+
+
+    result.innerHTML = `
+
+        {{-- SESSION CARDS --}}
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+
+            ${comparisonSessionCard(itemA, 'Measurement A')}
+
+            ${comparisonSessionCard(itemB, 'Measurement B')}
+
+        </div>
+
+
+        {{-- POINT COMPARISON --}}
+        <div class="mt-6 border border-gray-200
+                    rounded-xl overflow-hidden">
+
+            <div class="bg-gray-50 px-5 py-4">
+
+                <h3 class="font-bold text-[#0F2D5C]">
+                    Measurement Comparison
+                </h3>
+
+                <p class="text-sm text-gray-500 mt-1">
+                    Overall vibration comparison by measurement point
+                </p>
+
+            </div>
+
+
+            <div class="overflow-x-auto">
+
+                <table class="w-full text-sm">
+
+                    <thead class="bg-white">
+
+                        <tr>
+
+                            <th class="px-4 py-3 text-left">
+                                Point
+                            </th>
+
+                            <th class="px-4 py-3 text-left">
+                                Direction
+                            </th>
+
+                            <th class="px-4 py-3 text-right">
+                                ${escapeHtml(itemA.equipmentName)}
+                            </th>
+
+                            <th class="px-4 py-3 text-right">
+                                ${escapeHtml(itemB.equipmentName)}
+                            </th>
+
+                            <th class="px-4 py-3 text-right">
+                                Change
+                            </th>
+
+                        </tr>
+
+                    </thead>
+
+                    <tbody>
+                        ${comparisonRows}
+                    </tbody>
+
+                </table>
+
+            </div>
+
+        </div>
+
+    `;
+}
+
+
+function comparisonSessionCard(item, label) {
+
+    const session = item.session;
+
+
+    const highest =
+        session.highestOverall !== null &&
+        session.highestOverall !== undefined
+            ? velocityToInch(
+                session.highestOverall,
+                'mm/s RMS'
+            )
+            : null;
+
+
+    return `
+
+        <div class="border border-gray-200
+                    rounded-xl p-5">
+
+            <div class="flex items-center justify-between gap-3">
+
+                <div>
+
+                    <p class="text-xs uppercase tracking-wide
+                              text-gray-400 font-semibold">
+                        ${label}
+                    </p>
+
+                    <h3 class="text-lg font-bold
+                               text-[#0F2D5C] mt-1">
+                        ${escapeHtml(item.equipmentName)}
+                    </h3>
+
+                    <p class="text-sm text-gray-500 mt-1">
+                        ${escapeHtml(item.area || '-')}
+                        ·
+                        ${escapeHtml(
+                            formatDateOnly(session.inspectionDate)
+                        )}
+                    </p>
+
+                </div>
+
+                ${severityBadge(session.severity)}
+
+            </div>
+
+
+            <div class="grid grid-cols-2 gap-3 mt-5">
+
+                ${summaryCard(
+                    'Highest Overall',
+                    highest !== null
+                        ? `${highest.toFixed(2)} inch/s RMS`
+                        : '-'
+                )}
+
+                ${summaryCard(
+                    'Highest Point',
+                    `${escapeHtml(session.highestPoint || '-')}
+                     ${session.highestDirection
+                        ? `- ${escapeHtml(session.highestDirection)}`
+                        : ''}`
+                )}
+
+                ${summaryCard(
+                    'Measurement Points',
+                    `${session.measurementCount || 0} points`
+                )}
+
+                ${summaryCard(
+                    'Inspector',
+                    escapeHtml(session.inspector || '-')
+                )}
+
+            </div>
+
+        </div>
+
+    `;
+}
 
 function openEquipmentDetail(equipmentId) {
 
