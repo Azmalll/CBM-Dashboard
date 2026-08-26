@@ -1033,10 +1033,13 @@
         >
 
             {{-- HEADER --}}
-            <div class="px-6 py-5 border-b border-gray-200
-                        flex items-start justify-between gap-4">
+            <div
+                class="px-6 py-5 border-b border-gray-200
+                       flex items-start justify-between gap-4"
+            >
 
                 <div>
+
                     <p class="text-xs uppercase tracking-[0.18em]
                               text-gray-400 font-semibold">
                         CBM Analysis
@@ -1049,6 +1052,7 @@
                     <p class="text-sm text-gray-500 mt-1">
                         Compare two inspection sessions from any equipment and date.
                     </p>
+
                 </div>
 
                 <button
@@ -1065,106 +1069,172 @@
 
 
             {{-- BODY --}}
-            <div class="p-6 overflow-y-auto max-h-[calc(92vh-100px)]">
+            <div
+                class="p-6 overflow-y-auto
+                       max-h-[calc(92vh-100px)]"
+            >
 
-                {{-- ========================================================= --}}
-{{-- COMPARISON SELECTOR --}}
-{{-- ========================================================= --}}
+                {{-- ================================================= --}}
+                {{-- CASCADE SELECTOR --}}
+                {{-- ================================================= --}}
 
-<div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-5">
 
-    {{-- MEASUREMENT A --}}
-    <div class="bg-gray-50 rounded-xl border border-gray-200 p-5">
+                    {{-- MEASUREMENT A --}}
+                    <div
+                        class="bg-gray-50 rounded-xl
+                               border border-gray-200 p-5"
+                    >
 
-        <p class="text-xs uppercase tracking-wide
-                  text-gray-400 font-semibold">
-            Measurement A
-        </p>
+                        <p class="text-xs uppercase tracking-wide
+                                  text-gray-400 font-semibold">
+                            Measurement A
+                        </p>
 
-        {{-- EQUIPMENT A --}}
-        <label class="block text-xs font-medium text-gray-500 mt-4 mb-1.5">
-            Equipment
-        </label>
+                        <div class="mt-3">
 
-        <select
-            id="comparisonEquipmentA"
-            onchange="updateComparisonDates('A')"
-            class="w-full rounded-lg border border-gray-300
-                   bg-white px-3 py-2.5 text-sm
-                   text-[#0F2D5C]"
-        >
-            <option value="">
-                Select equipment
-            </option>
-        </select>
+                            <label
+                                class="block text-xs
+                                       font-medium text-gray-500 mb-1"
+                            >
+                                Equipment
+                            </label>
 
+                            <select
+                                id="comparisonEquipmentA"
+                                onchange="updateComparisonDates('A')"
+                                class="w-full rounded-lg border
+                                       border-gray-300 bg-white
+                                       px-3 py-2.5 text-sm
+                                       text-[#0F2D5C]"
+                            >
+                                <option value="">
+                                    Select equipment
+                                </option>
+                            </select>
 
-        {{-- DATE A --}}
-        <label class="block text-xs font-medium text-gray-500 mt-4 mb-1.5">
-            Inspection Date
-        </label>
-
-        <select
-            id="comparisonDateA"
-            onchange="renderComparison()"
-            disabled
-            class="w-full rounded-lg border border-gray-300
-                   bg-white px-3 py-2.5 text-sm
-                   text-[#0F2D5C] disabled:bg-gray-100
-                   disabled:text-gray-400"
-        >
-            <option value="">
-                Select inspection date
-            </option>
-        </select>
-
-    </div>
+                        </div>
 
 
-    {{-- MEASUREMENT B --}}
-    <div class="bg-gray-50 rounded-xl border border-gray-200 p-5">
+                        <div class="mt-3">
 
-        <p class="text-xs uppercase tracking-wide
-                  text-gray-400 font-semibold">
-            Measurement B
-        </p>
+                            <label
+                                class="block text-xs
+                                       font-medium text-gray-500 mb-1"
+                            >
+                                Inspection Date
+                            </label>
 
-        {{-- EQUIPMENT B --}}
-        <label class="block text-xs font-medium text-gray-500 mt-4 mb-1.5">
-            Equipment
-        </label>
+                            <select
+                                id="comparisonDateA"
+                                onchange="renderComparison()"
+                                disabled
+                                class="w-full rounded-lg border
+                                       border-gray-300 bg-white
+                                       px-3 py-2.5 text-sm
+                                       text-[#0F2D5C]
+                                       disabled:bg-gray-100
+                                       disabled:text-gray-400"
+                            >
+                                <option value="">
+                                    Select inspection date
+                                </option>
+                            </select>
 
-        <select
-            id="comparisonEquipmentB"
-            onchange="updateComparisonDates('B')"
-            class="w-full rounded-lg border border-gray-300
-                   bg-white px-3 py-2.5 text-sm
-                   text-[#0F2D5C]"
-        >
-            <option value="">
-                Select equipment
-            </option>
-        </select>
+                        </div>
+
+                    </div>
 
 
-        {{-- DATE B --}}
-        <label class="block text-xs font-medium text-gray-500 mt-4 mb-1.5">
-            Inspection Date
-        </label>
+                    {{-- MEASUREMENT B --}}
+                    <div
+                        class="bg-gray-50 rounded-xl
+                               border border-gray-200 p-5"
+                    >
 
-        <select
-            id="comparisonDateB"
-            onchange="renderComparison()"
-            disabled
-            class="w-full rounded-lg border border-gray-300
-                   bg-white px-3 py-2.5 text-sm
-                   text-[#0F2D5C] disabled:bg-gray-100
-                   disabled:text-gray-400"
-        >
-            <option value="">
-                Select inspection date
-            </option>
-        </select>
+                        <p class="text-xs uppercase tracking-wide
+                                  text-gray-400 font-semibold">
+                            Measurement B
+                        </p>
+
+                        <div class="mt-3">
+
+                            <label
+                                class="block text-xs
+                                       font-medium text-gray-500 mb-1"
+                            >
+                                Equipment
+                            </label>
+
+                            <select
+                                id="comparisonEquipmentB"
+                                onchange="updateComparisonDates('B')"
+                                class="w-full rounded-lg border
+                                       border-gray-300 bg-white
+                                       px-3 py-2.5 text-sm
+                                       text-[#0F2D5C]"
+                            >
+                                <option value="">
+                                    Select equipment
+                                </option>
+                            </select>
+
+                        </div>
+
+
+                        <div class="mt-3">
+
+                            <label
+                                class="block text-xs
+                                       font-medium text-gray-500 mb-1"
+                            >
+                                Inspection Date
+                            </label>
+
+                            <select
+                                id="comparisonDateB"
+                                onchange="renderComparison()"
+                                disabled
+                                class="w-full rounded-lg border
+                                       border-gray-300 bg-white
+                                       px-3 py-2.5 text-sm
+                                       text-[#0F2D5C]
+                                       disabled:bg-gray-100
+                                       disabled:text-gray-400"
+                            >
+                                <option value="">
+                                    Select inspection date
+                                </option>
+                            </select>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+                {{-- ================================================= --}}
+                {{-- RESULT --}}
+                {{-- ================================================= --}}
+
+                <div
+                    id="comparisonResult"
+                    class="mt-6"
+                >
+
+                    <div
+                        class="bg-gray-50 rounded-xl
+                               p-8 text-center text-gray-400"
+                    >
+                        Select Measurement A and Measurement B.
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
 
     </div>
 
@@ -1315,7 +1385,6 @@ const currentUserIsAdmin = @json(auth()->user()?->isAdmin() ?? false);
 
 let activeEquipmentData = null;
 let activeHistoryIndex = null;
-let comparisonSessions = [];
 
 
 /*
@@ -1325,55 +1394,41 @@ let comparisonSessions = [];
 |
 | Flow:
 |
-| Equipment A
+| Measurement A
+|   Equipment
 |      ↓
-| Inspection Date A
+|   Inspection Date
 |
-| Equipment B
+| Measurement B
+|   Equipment
 |      ↓
-| Inspection Date B
+|   Inspection Date
 |
-| All measurement points are compared automatically.
+| Setelah dua session dipilih:
+| - Measurement Detail A & B
+| - Current / Previous
+| - Delta Value
+| - Delta %
+| - Severity
+| - Measurement Point
+| - Timestamp
+| - Comparison table seluruh measurement point
+| - Comparison chart seluruh measurement point
 |
 |--------------------------------------------------------------------------
 */
 
+
 function openComparisonModal() {
 
     const modal =
-        document.getElementById('comparisonModal');
+        document.getElementById(
+            'comparisonModal'
+        );
 
     if (!modal) {
         return;
     }
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | BUILD EQUIPMENT OPTIONS
-    |--------------------------------------------------------------------------
-    */
-
-    const equipmentOptions =
-        Object.entries(equipmentDetailData)
-            .sort(function (a, b) {
-
-                return String(a[1].name || '')
-                    .localeCompare(
-                        String(b[1].name || '')
-                    );
-
-            })
-            .map(function ([equipmentId, equipment]) {
-
-                return `
-                    <option value="${escapeHtml(equipmentId)}">
-                        ${escapeHtml(equipment.name || '-')}
-                    </option>
-                `;
-
-            })
-            .join('');
 
 
     const equipmentA =
@@ -1387,10 +1442,43 @@ function openComparisonModal() {
         );
 
 
+    const equipmentOptions =
+        Object.entries(
+            equipmentDetailData || {}
+        )
+        .sort(function (a, b) {
+
+            return String(
+                a[1]?.name || ''
+            ).localeCompare(
+                String(
+                    b[1]?.name || ''
+                )
+            );
+
+        })
+        .map(function ([equipmentId, equipment]) {
+
+            return `
+                <option value="${escapeHtml(equipmentId)}">
+                    ${escapeHtml(
+                        equipment?.name || '-'
+                    )}
+                </option>
+            `;
+
+        })
+        .join('');
+
+
     if (equipmentA) {
 
         equipmentA.innerHTML =
-            `<option value="">Select equipment</option>` +
+            `
+                <option value="">
+                    Select equipment
+                </option>
+            ` +
             equipmentOptions;
 
         equipmentA.value = '';
@@ -1401,7 +1489,11 @@ function openComparisonModal() {
     if (equipmentB) {
 
         equipmentB.innerHTML =
-            `<option value="">Select equipment</option>` +
+            `
+                <option value="">
+                    Select equipment
+                </option>
+            ` +
             equipmentOptions;
 
         equipmentB.value = '';
@@ -1413,19 +1505,24 @@ function openComparisonModal() {
     resetComparisonDateSelector('B');
 
 
-    document.getElementById(
-        'comparisonResult'
-    ).innerHTML = `
+    const result =
+        document.getElementById(
+            'comparisonResult'
+        );
 
-        <div class="bg-gray-50 rounded-xl p-8
-                    text-center text-gray-400">
 
-            Select Equipment A and Equipment B,
-            then select their inspection dates.
+    if (result) {
 
-        </div>
+        result.innerHTML = `
+            <div
+                class="bg-gray-50 rounded-xl
+                       p-8 text-center text-gray-400"
+            >
+                Select Measurement A and Measurement B.
+            </div>
+        `;
 
-    `;
+    }
 
 
     modal.classList.remove('hidden');
@@ -1436,6 +1533,32 @@ function openComparisonModal() {
     );
 
     document.body.classList.add(
+        'overflow-hidden'
+    );
+
+}
+
+
+function closeComparisonModal() {
+
+    const modal =
+        document.getElementById(
+            'comparisonModal'
+        );
+
+    if (!modal) {
+        return;
+    }
+
+
+    modal.classList.add('hidden');
+
+    modal.setAttribute(
+        'aria-hidden',
+        'true'
+    );
+
+    document.body.classList.remove(
         'overflow-hidden'
     );
 
@@ -1475,7 +1598,7 @@ function resetComparisonDateSelector(side) {
 
 /*
 |--------------------------------------------------------------------------
-| UPDATE INSPECTION DATE BASED ON EQUIPMENT
+| CASCADE EQUIPMENT → INSPECTION DATE
 |--------------------------------------------------------------------------
 */
 
@@ -1529,41 +1652,54 @@ function updateComparisonDates(side) {
 
 
     const history =
-        Array.isArray(equipment.history)
+        Array.isArray(
+            equipment.history
+        )
             ? equipment.history
             : [];
 
 
     /*
     |--------------------------------------------------------------------------
-    | BUILD DATE OPTIONS
+    | BUILD INSPECTION DATE OPTIONS
     |--------------------------------------------------------------------------
     */
-
-    const options =
-        history.map(function (session, index) {
-
-            const date =
-                formatDateOnly(
-                    session.inspectionDate
-                );
-
-
-            return `
-                <option value="${index}">
-                    ${escapeHtml(date)}
-                </option>
-            `;
-
-        }).join('');
-
 
     dateSelect.innerHTML = `
         <option value="">
             Select inspection date
         </option>
-        ${options}
     `;
+
+
+    history.forEach(
+        function (session, index) {
+
+            const date =
+                formatDateOnly(
+                    session?.inspectionDate
+                );
+
+
+            const option =
+                document.createElement(
+                    'option'
+                );
+
+
+            option.value =
+                String(index);
+
+            option.textContent =
+                date;
+
+
+            dateSelect.appendChild(
+                option
+            );
+
+        }
+    );
 
 
     dateSelect.disabled =
@@ -1577,7 +1713,7 @@ function updateComparisonDates(side) {
 
 /*
 |--------------------------------------------------------------------------
-| GET SELECTED COMPARISON SESSION
+| GET SELECTED SESSION
 |--------------------------------------------------------------------------
 */
 
@@ -1606,7 +1742,9 @@ function getSelectedComparisonSession(side) {
 
     const equipment =
         equipmentDetailData[
-            String(equipmentSelect.value)
+            String(
+                equipmentSelect.value
+            )
         ];
 
 
@@ -1616,11 +1754,19 @@ function getSelectedComparisonSession(side) {
 
 
     const historyIndex =
-        Number(dateSelect.value);
+        Number(
+            dateSelect.value
+        );
 
 
     const session =
-        equipment.history?.[historyIndex];
+        Array.isArray(
+            equipment.history
+        )
+            ? equipment.history[
+                historyIndex
+            ]
+            : null;
 
 
     if (!session) {
@@ -1631,13 +1777,15 @@ function getSelectedComparisonSession(side) {
     return {
 
         equipmentId:
-            equipmentSelect.value,
+            String(
+                equipmentSelect.value
+            ),
 
         equipmentName:
-            equipment.name,
+            equipment.name || '-',
 
         area:
-            equipment.area,
+            equipment.area || '-',
 
         historyIndex:
             historyIndex,
@@ -1652,32 +1800,371 @@ function getSelectedComparisonSession(side) {
 
 /*
 |--------------------------------------------------------------------------
-| CLOSE COMPARISON MODAL
+| COMPARISON HELPERS
 |--------------------------------------------------------------------------
 */
 
-function closeComparisonModal() {
+function getMeasurementKey(measurement) {
 
-    const modal =
-        document.getElementById(
-            'comparisonModal'
-        );
+    return [
+        measurement?.point || '-',
+        measurement?.direction || '-'
+    ].join('|');
 
-    if (!modal) {
-        return;
+}
+
+
+function getMeasurementMap(session) {
+
+    const measurements =
+        Array.isArray(
+            session?.measurements
+        )
+            ? session.measurements
+            : [];
+
+
+    const map =
+        new Map();
+
+
+    measurements.forEach(
+        function (measurement) {
+
+            map.set(
+                getMeasurementKey(
+                    measurement
+                ),
+                measurement
+            );
+
+        }
+    );
+
+
+    return map;
+
+}
+
+
+function getDeltaPercent(valueA, valueB) {
+
+    const a = Number(valueA);
+    const b = Number(valueB);
+
+
+    if (
+        !Number.isFinite(a) ||
+        !Number.isFinite(b)
+    ) {
+        return null;
     }
 
 
-    modal.classList.add('hidden');
+    if (a === 0) {
 
-    modal.setAttribute(
-        'aria-hidden',
-        'true'
+        if (b === 0) {
+            return 0;
+        }
+
+        return null;
+
+    }
+
+
+    return (
+        ((b - a) / a) *
+        100
     );
 
-    document.body.classList.remove(
-        'overflow-hidden'
+}
+
+
+function formatDeltaPercent(value) {
+
+    if (
+        value === null ||
+        value === undefined ||
+        !Number.isFinite(
+            Number(value)
+        )
+    ) {
+        return '-';
+    }
+
+
+    const number =
+        Number(value);
+
+
+    return (
+        number > 0
+            ? '+'
+            : ''
+    ) +
+    number.toFixed(1) +
+    '%';
+
+}
+
+
+function deltaClass(value) {
+
+    const number =
+        Number(value);
+
+
+    if (!Number.isFinite(number)) {
+        return 'text-gray-500';
+    }
+
+
+    /*
+    | Positive vibration change = deterioration
+    | Negative vibration change = improvement
+    */
+
+    if (number > 0) {
+        return 'text-red-600';
+    }
+
+
+    if (number < 0) {
+        return 'text-green-600';
+    }
+
+
+    return 'text-gray-500';
+
+}
+
+
+function formatComparisonValue(
+    measurement
+) {
+
+    if (!measurement) {
+        return '-';
+    }
+
+
+    return formatVibrationValue(
+        measurement.overall,
+        measurement.unit ||
+        'mm/s RMS'
     );
+
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| MEASUREMENT DETAIL CARD
+|--------------------------------------------------------------------------
+*/
+
+function renderComparisonDetailCard(
+    label,
+    item,
+    session
+) {
+
+    if (!item) {
+
+        return `
+            <div
+                class="bg-gray-50 rounded-xl
+                       border border-dashed
+                       border-gray-300 p-5"
+            >
+
+                <p class="text-xs uppercase
+                          tracking-wide
+                          text-gray-400
+                          font-semibold">
+                    ${escapeHtml(label)}
+                </p>
+
+                <p class="text-sm text-gray-400 mt-4">
+                    Measurement data unavailable.
+                </p>
+
+            </div>
+        `;
+
+    }
+
+
+    const value =
+        Number(
+            item.overall
+        );
+
+
+    const previous =
+        item.previousOverall !== undefined
+            ? Number(
+                item.previousOverall
+            )
+            : null;
+
+
+    const timestamp =
+        item.datetime ||
+        session?.inspectionDate ||
+        null;
+
+
+    const delta =
+        previous !== null &&
+        Number.isFinite(previous) &&
+        Number.isFinite(value)
+            ? value - previous
+            : null;
+
+
+    const deltaPercent =
+        previous !== null &&
+        Number.isFinite(previous)
+            ? getDeltaPercent(
+                previous,
+                value
+            )
+            : null;
+
+
+    return `
+
+        <div
+            class="bg-white rounded-xl
+                   border border-gray-200
+                   p-5"
+        >
+
+            <div class="flex items-start
+                        justify-between gap-3">
+
+                <div>
+
+                    <p class="text-xs uppercase
+                              tracking-wide
+                              text-gray-400
+                              font-semibold">
+                        ${escapeHtml(label)}
+                    </p>
+
+                    <p class="text-lg font-bold
+                              text-[#0F2D5C] mt-1">
+                        ${escapeHtml(
+                            session?.equipmentName ||
+                            '-'
+                        )}
+                    </p>
+
+                    <p class="text-xs text-gray-500 mt-1">
+                        ${escapeHtml(
+                            formatDateOnly(
+                                session?.inspectionDate
+                            )
+                        )}
+                    </p>
+
+                </div>
+
+                ${severityBadge(
+                    item.severity
+                )}
+
+            </div>
+
+
+            <div
+                class="grid grid-cols-2
+                       gap-3 mt-5"
+            >
+
+                <div
+                    class="bg-gray-50 rounded-lg p-3"
+                >
+                    <p class="text-xs text-gray-400">
+                        Overall
+                    </p>
+
+                    <p
+                        class="font-bold
+                               text-[#0F2D5C] mt-1"
+                    >
+                        ${escapeHtml(
+                            formatComparisonValue(
+                                item
+                            )
+                        )}
+                    </p>
+                </div>
+
+
+                <div
+                    class="bg-gray-50 rounded-lg p-3"
+                >
+                    <p class="text-xs text-gray-400">
+                        Measurement Point
+                    </p>
+
+                    <p
+                        class="font-semibold
+                               text-[#0F2D5C] mt-1"
+                    >
+                        ${escapeHtml(
+                            item.point || '-'
+                        )}
+                    </p>
+
+                    <p class="text-xs text-gray-500">
+                        ${escapeHtml(
+                            item.direction || '-'
+                        )}
+                    </p>
+                </div>
+
+
+                <div
+                    class="bg-gray-50 rounded-lg p-3"
+                >
+                    <p class="text-xs text-gray-400">
+                        Timestamp
+                    </p>
+
+                    <p
+                        class="font-semibold
+                               text-gray-700 mt-1"
+                    >
+                        ${escapeHtml(
+                            formatDateTime(
+                                timestamp
+                            )
+                        )}
+                    </p>
+                </div>
+
+
+                <div
+                    class="bg-gray-50 rounded-lg p-3"
+                >
+                    <p class="text-xs text-gray-400">
+                        Severity
+                    </p>
+
+                    <div class="mt-1">
+                        ${severityBadge(
+                            item.severity
+                        )}
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+    `;
 
 }
 
@@ -1711,15 +2198,13 @@ function renderComparison() {
     if (!itemA || !itemB) {
 
         result.innerHTML = `
-
-            <div class="bg-gray-50 rounded-xl p-8
-                        text-center text-gray-400">
-
-                Select Equipment A and Equipment B,
-                then select their inspection dates.
-
+            <div
+                class="bg-gray-50 rounded-xl
+                       p-8 text-center
+                       text-gray-400"
+            >
+                Select Measurement A and Measurement B.
             </div>
-
         `;
 
         return;
@@ -1727,33 +2212,24 @@ function renderComparison() {
     }
 
 
-    /*
-    |--------------------------------------------------------------------------
-    | PREVENT SAME SESSION
-    |--------------------------------------------------------------------------
-    */
-
     if (
         itemA.equipmentId ===
-        itemB.equipmentId
-        &&
+            itemB.equipmentId &&
         itemA.historyIndex ===
-        itemB.historyIndex
+            itemB.historyIndex
     ) {
 
         result.innerHTML = `
-
-            <div class="bg-yellow-50
-                        border border-yellow-200
-                        rounded-xl p-5
-                        text-center text-yellow-700
-                        text-sm">
-
+            <div
+                class="bg-yellow-50
+                       border border-yellow-200
+                       rounded-xl p-5
+                       text-center
+                       text-yellow-700 text-sm"
+            >
                 Please select two different
                 inspection sessions.
-
             </div>
-
         `;
 
         return;
@@ -1768,725 +2244,565 @@ function renderComparison() {
         itemB.session;
 
 
-    /*
-    |--------------------------------------------------------------------------
-    | MEASUREMENT MAP
-    |--------------------------------------------------------------------------
-    |
-    | All points are included.
-    |
-    | If a point exists only in A or only in B,
-    | it will still appear in the table.
-    |
-    */
-
     const measurementsA =
-        Array.isArray(
-            sessionA.measurements
-        )
-            ? sessionA.measurements
-            : [];
-
-
-    const measurementsB =
-        Array.isArray(
-            sessionB.measurements
-        )
-            ? sessionB.measurements
-            : [];
-
-
-    const mapA =
-        new Map(
-            measurementsA.map(function (measurement) {
-
-                return [
-                    `${measurement.point}|${measurement.direction}`,
-                    measurement
-                ];
-
-            })
+        getMeasurementMap(
+            sessionA
         );
 
-
-    const mapB =
-        new Map(
-            measurementsB.map(function (measurement) {
-
-                return [
-                    `${measurement.point}|${measurement.direction}`,
-                    measurement
-                ];
-
-            })
+    const measurementsB =
+        getMeasurementMap(
+            sessionB
         );
 
 
     const keys =
-        [
-            ...new Set([
-                ...mapA.keys(),
-                ...mapB.keys()
+        Array.from(
+            new Set([
+                ...measurementsA.keys(),
+                ...measurementsB.keys()
             ])
-        ];
+        );
 
 
     /*
     |--------------------------------------------------------------------------
-    | BUILD COMPARISON ROWS
+    | SUMMARY
     |--------------------------------------------------------------------------
     */
 
-    const comparisonRows =
-        keys.map(function (key) {
+    const allRows =
+        keys.map(
+            function (key) {
 
-            const a =
-                mapA.get(key);
+                const measurementA =
+                    measurementsA.get(
+                        key
+                    );
 
-
-            const b =
-                mapB.get(key);
-
-
-            const valueA =
-                a?.overall !== null &&
-                a?.overall !== undefined
-                    ? convertVibrationValue(
-                        a.overall,
-                        a.unit || 'mm/s RMS'
-                    )
-                    : null;
+                const measurementB =
+                    measurementsB.get(
+                        key
+                    );
 
 
-            const valueB =
-                b?.overall !== null &&
-                b?.overall !== undefined
-                    ? convertVibrationValue(
-                        b.overall,
-                        b.unit || 'mm/s RMS'
-                    )
-                    : null;
+                let delta = null;
+                let deltaPercent = null;
 
 
-            let delta =
-                null;
+                if (
+                    measurementA &&
+                    measurementB
+                ) {
 
-            let deltaPercent =
-                null;
-
-
-            if (
-                valueA !== null &&
-                valueB !== null
-            ) {
-
-                delta =
-                    valueB - valueA;
+                    const valueA =
+                        velocityToMm(
+                            measurementA.overall,
+                            measurementA.unit ||
+                            'mm/s RMS'
+                        );
 
 
-                if (valueA !== 0) {
+                    const valueB =
+                        velocityToMm(
+                            measurementB.overall,
+                            measurementB.unit ||
+                            'mm/s RMS'
+                        );
 
-                    deltaPercent =
-                        (
-                            delta /
-                            valueA
-                        ) * 100;
 
+                    if (
+                        valueA !== null &&
+                        valueB !== null
+                    ) {
+
+                        delta =
+                            vibrationDisplayUnit ===
+                            'inch/s RMS'
+                                ? (
+                                    (valueB - valueA) /
+                                    25.4
+                                )
+                                : (
+                                    valueB - valueA
+                                );
+
+
+                        deltaPercent =
+                            getDeltaPercent(
+                                valueA,
+                                valueB
+                            );
+
+                    }
+
+                }
+
+
+                return {
+                    key,
+                    measurementA,
+                    measurementB,
+                    delta,
+                    deltaPercent
+                };
+
+            }
+        );
+
+
+    /*
+    |--------------------------------------------------------------------------
+    | HIGHLIGHT
+    |--------------------------------------------------------------------------
+    */
+
+    const commonRows =
+        allRows.filter(
+            function (row) {
+
+                return (
+                    row.measurementA &&
+                    row.measurementB
+                );
+
+            }
+        );
+
+
+    let totalIncrease = 0;
+    let totalDecrease = 0;
+
+
+    commonRows.forEach(
+        function (row) {
+
+            const delta =
+                Number(
+                    row.deltaPercent
+                );
+
+
+            if (Number.isFinite(delta)) {
+
+                if (delta > 0) {
+                    totalIncrease++;
+                }
+
+                if (delta < 0) {
+                    totalDecrease++;
                 }
 
             }
 
-
-            const deltaClass =
-                delta === null
-                    ? 'text-gray-400'
-                    : delta > 0
-                        ? 'text-red-600'
-                        : delta < 0
-                            ? 'text-green-600'
-                            : 'text-gray-500';
-
-
-            const deltaText =
-                delta === null
-                    ? '-'
-                    : `${
-                        delta > 0
-                            ? '+'
-                            : ''
-                    }${delta.toFixed(2)}
-                    ${vibrationDisplayUnit}`;
-
-
-            const deltaPercentText =
-                deltaPercent === null
-                    ? '-'
-                    : `${
-                        deltaPercent > 0
-                            ? '+'
-                            : ''
-                    }${deltaPercent.toFixed(1)}%`;
-
-
-            const point =
-                a?.point ||
-                b?.point ||
-                '-';
-
-
-            const direction =
-                a?.direction ||
-                b?.direction ||
-                '-';
-
-
-            const severityA =
-                a?.severity ||
-                'Pending';
-
-
-            const severityB =
-                b?.severity ||
-                'Pending';
-
-
-            return `
-
-                <tr class="border-t border-gray-100">
-
-                    <td class="px-4 py-3
-                               font-semibold
-                               text-[#0F2D5C]
-                               whitespace-nowrap">
-
-                        ${escapeHtml(point)}
-
-                    </td>
-
-
-                    <td class="px-4 py-3
-                               text-gray-600
-                               whitespace-nowrap">
-
-                        ${escapeHtml(direction)}
-
-                    </td>
-
-
-                    <td class="px-4 py-3
-                               text-right
-                               font-semibold
-                               text-[#0F2D5C]
-                               whitespace-nowrap">
-
-                        ${
-                            valueA !== null
-                                ? `${valueA.toFixed(2)}
-                                   ${escapeHtml(
-                                       vibrationDisplayUnit
-                                   )}`
-                                : '-'
-                        }
-
-                    </td>
-
-
-                    <td class="px-4 py-3
-                               text-center">
-
-                        ${
-                            a
-                                ? severityBadge(
-                                    severityA
-                                )
-                                : '<span class="text-gray-400">-</span>'
-                        }
-
-                    </td>
-
-
-                    <td class="px-4 py-3
-                               text-right
-                               font-semibold
-                               text-[#0F2D5C]
-                               whitespace-nowrap">
-
-                        ${
-                            valueB !== null
-                                ? `${valueB.toFixed(2)}
-                                   ${escapeHtml(
-                                       vibrationDisplayUnit
-                                   )}`
-                                : '-'
-                        }
-
-                    </td>
-
-
-                    <td class="px-4 py-3
-                               text-center">
-
-                        ${
-                            b
-                                ? severityBadge(
-                                    severityB
-                                )
-                                : '<span class="text-gray-400">-</span>'
-                        }
-
-                    </td>
-
-
-                    <td class="px-4 py-3
-                               text-right
-                               font-semibold
-                               ${deltaClass}
-                               whitespace-nowrap">
-
-                        ${deltaText}
-
-                    </td>
-
-
-                    <td class="px-4 py-3
-                               text-right
-                               font-semibold
-                               ${deltaClass}
-                               whitespace-nowrap">
-
-                        ${deltaPercentText}
-
-                    </td>
-
-                </tr>
-
-            `;
-
-        }).join('');
+        }
+    );
 
 
     /*
     |--------------------------------------------------------------------------
-    | HIGHLIGHT SUMMARY
+    | DETAIL CARDS
     |--------------------------------------------------------------------------
     */
 
-    const comparableRows =
-        keys.map(function (key) {
-
-            const a =
-                mapA.get(key);
-
-            const b =
-                mapB.get(key);
+    const firstCommon =
+        commonRows[0];
 
 
-            if (
-                a?.overall === null ||
-                a?.overall === undefined ||
-                b?.overall === null ||
-                b?.overall === undefined
-            ) {
-                return null;
-            }
+    const detailA =
+        firstCommon
+            ? firstCommon.measurementA
+            : null;
+
+    const detailB =
+        firstCommon
+            ? firstCommon.measurementB
+            : null;
 
 
-            const valueA =
-                convertVibrationValue(
-                    a.overall,
-                    a.unit || 'mm/s RMS'
-                );
-
-
-            const valueB =
-                convertVibrationValue(
-                    b.overall,
-                    b.unit || 'mm/s RMS'
-                );
-
-
-            const delta =
-                valueB - valueA;
-
-
-            const percent =
-                valueA !== 0
-                    ? (
-                        delta /
-                        valueA
-                    ) * 100
-                    : null;
-
-
-            return {
-                point:
-                    a?.point ||
-                    b?.point ||
-                    '-',
-
-                direction:
-                    a?.direction ||
-                    b?.direction ||
-                    '-',
-
-                valueA:
-                    valueA,
-
-                valueB:
-                    valueB,
-
-                delta:
-                    delta,
-
-                percent:
-                    percent
-
-            };
-
-        }).filter(Boolean);
-
-
-    const highestIncrease =
-        comparableRows
-            .filter(row => row.delta > 0)
-            .sort(
-                (a, b) =>
-                    b.percent - a.percent
-            )[0] || null;
-
-
-    const highestDecrease =
-        comparableRows
-            .filter(row => row.delta < 0)
-            .sort(
-                (a, b) =>
-                    a.percent - b.percent
-            )[0] || null;
-
+    /*
+    |--------------------------------------------------------------------------
+    | RESULT HTML
+    |--------------------------------------------------------------------------
+    */
 
     result.innerHTML = `
 
-        {{-- ================================================= --}}
-        {{-- DETAIL CARDS --}}
-        {{-- ================================================= --}}
+        {{-- =============================================== --}}
+        {{-- SESSION HEADER --}}
+        {{-- =============================================== --}}
 
-        <div class="grid grid-cols-1
-                    lg:grid-cols-2 gap-5">
+        <div
+            class="grid grid-cols-1
+                   md:grid-cols-2 gap-4"
+        >
 
-            ${comparisonSessionCard(
-                itemA,
-                'Measurement A'
-            )}
+            <div
+                class="rounded-xl
+                       border border-gray-200
+                       bg-gray-50 p-4"
+            >
 
-            ${comparisonSessionCard(
-                itemB,
-                'Measurement B'
-            )}
+                <p class="text-xs uppercase
+                          tracking-wide
+                          text-gray-400
+                          font-semibold">
+                    Measurement A
+                </p>
+
+                <p
+                    class="font-bold
+                           text-[#0F2D5C] mt-1"
+                >
+                    ${escapeHtml(
+                        itemA.equipmentName
+                    )}
+                </p>
+
+                <p class="text-sm text-gray-500">
+                    ${escapeHtml(
+                        formatDateOnly(
+                            sessionA.inspectionDate
+                        )
+                    )}
+                </p>
+
+            </div>
+
+
+            <div
+                class="rounded-xl
+                       border border-gray-200
+                       bg-gray-50 p-4"
+            >
+
+                <p class="text-xs uppercase
+                          tracking-wide
+                          text-gray-400
+                          font-semibold">
+                    Measurement B
+                </p>
+
+                <p
+                    class="font-bold
+                           text-[#0F2D5C] mt-1"
+                >
+                    ${escapeHtml(
+                        itemB.equipmentName
+                    )}
+                </p>
+
+                <p class="text-sm text-gray-500">
+                    ${escapeHtml(
+                        formatDateOnly(
+                            sessionB.inspectionDate
+                        )
+                    )}
+                </p>
+
+            </div>
 
         </div>
 
 
-        {{-- ================================================= --}}
+        {{-- =============================================== --}}
         {{-- HIGHLIGHT --}}
-        {{-- ================================================= --}}
+        {{-- =============================================== --}}
 
-        <div class="mt-5
-                    grid grid-cols-1
-                    md:grid-cols-3 gap-3">
+        <div class="mt-5">
 
-            <div class="bg-slate-50
-                        border border-slate-200
-                        rounded-xl p-4">
+            <div class="flex items-center
+                        justify-between mb-3">
 
-                <p class="text-xs uppercase
-                          tracking-wide
-                          text-gray-400">
-                    Measurement Coverage
-                </p>
+                <div>
 
-                <p class="text-lg font-bold
-                          text-[#0F2D5C] mt-1">
+                    <h3
+                        class="font-bold
+                               text-[#0F2D5C]"
+                    >
+                        Comparison Highlights
+                    </h3>
 
-                    ${measurementsA.length}
-                    vs
-                    ${measurementsB.length}
-                    points
+                    <p class="text-xs
+                              text-gray-500 mt-1">
+                        Based on measurement points available in both sessions.
+                    </p>
 
-                </p>
+                </div>
 
-            </div>
-
-
-            <div class="bg-slate-50
-                        border border-slate-200
-                        rounded-xl p-4">
-
-                <p class="text-xs uppercase
-                          tracking-wide
-                          text-gray-400">
-                    Highest Increase
-                </p>
-
-                ${
-                    highestIncrease
-                        ? `
-                            <p class="font-bold
-                                      text-red-600 mt-1">
-
-                                ${escapeHtml(
-                                    highestIncrease.point
-                                )}
-                                -
-                                ${escapeHtml(
-                                    highestIncrease.direction
-                                )}
-
-                            </p>
-
-                            <p class="text-xs
-                                      text-gray-500 mt-1">
-
-                                +${highestIncrease.percent.toFixed(1)}%
-
-                            </p>
-                          `
-                        : `
-                            <p class="font-semibold
-                                      text-gray-400 mt-1">
-                                -
-                            </p>
-                          `
-                }
+                <span
+                    class="text-xs text-gray-400"
+                >
+                    ${commonRows.length} common points
+                </span>
 
             </div>
 
 
-            <div class="bg-slate-50
-                        border border-slate-200
-                        rounded-xl p-4">
+            <div
+                class="grid grid-cols-2
+                       md:grid-cols-4 gap-3"
+            >
 
-                <p class="text-xs uppercase
-                          tracking-wide
-                          text-gray-400">
-                    Highest Decrease
-                </p>
+                <div
+                    class="bg-gray-50 rounded-xl p-4"
+                >
+                    <p class="text-xs text-gray-400">
+                        Increased
+                    </p>
 
-                ${
-                    highestDecrease
-                        ? `
-                            <p class="font-bold
-                                      text-green-600 mt-1">
+                    <p
+                        class="text-xl font-bold
+                               text-red-600 mt-1"
+                    >
+                        ${totalIncrease}
+                    </p>
 
-                                ${escapeHtml(
-                                    highestDecrease.point
-                                )}
-                                -
-                                ${escapeHtml(
-                                    highestDecrease.direction
-                                )}
+                    <p class="text-xs
+                              text-gray-400">
+                        points
+                    </p>
+                </div>
 
-                            </p>
 
-                            <p class="text-xs
-                                      text-gray-500 mt-1">
+                <div
+                    class="bg-gray-50 rounded-xl p-4"
+                >
+                    <p class="text-xs text-gray-400">
+                        Improved
+                    </p>
 
-                                ${highestDecrease.percent.toFixed(1)}%
+                    <p
+                        class="text-xl font-bold
+                               text-green-600 mt-1"
+                    >
+                        ${totalDecrease}
+                    </p>
 
-                            </p>
-                          `
-                        : `
-                            <p class="font-semibold
-                                      text-gray-400 mt-1">
-                                -
-                            </p>
-                          `
-                }
+                    <p class="text-xs
+                              text-gray-400">
+                        points
+                    </p>
+                </div>
+
+
+                <div
+                    class="bg-gray-50 rounded-xl p-4"
+                >
+                    <p class="text-xs text-gray-400">
+                        Measurement A
+                    </p>
+
+                    <p
+                        class="text-sm font-bold
+                               text-[#0F2D5C] mt-1"
+                    >
+                        ${escapeHtml(
+                            formatDateOnly(
+                                sessionA.inspectionDate
+                            )
+                        )}
+                    </p>
+
+                    <p class="text-xs
+                              text-gray-400">
+                        ${escapeHtml(
+                            itemA.equipmentName
+                        )}
+                    </p>
+                </div>
+
+
+                <div
+                    class="bg-gray-50 rounded-xl p-4"
+                >
+                    <p class="text-xs text-gray-400">
+                        Measurement B
+                    </p>
+
+                    <p
+                        class="text-sm font-bold
+                               text-[#0F2D5C] mt-1"
+                    >
+                        ${escapeHtml(
+                            formatDateOnly(
+                                sessionB.inspectionDate
+                            )
+                        )}
+                    </p>
+
+                    <p class="text-xs
+                              text-gray-400">
+                        ${escapeHtml(
+                            itemB.equipmentName
+                        )}
+                    </p>
+                </div>
 
             </div>
 
         </div>
 
 
-        {{-- ================================================= --}}
-        {{-- POINT COMPARISON --}}
-        {{-- ================================================= --}}
+        {{-- =============================================== --}}
+        {{-- DETAIL CARDS --}}
+        {{-- =============================================== --}}
 
-        <div class="mt-6
-                    border border-gray-200
-                    rounded-xl overflow-hidden">
+        <div class="mt-5">
 
-            <div class="bg-gray-50
-                        px-5 py-4">
+            <h3
+                class="font-bold
+                       text-[#0F2D5C] mb-3"
+            >
+                Measurement Detail
+            </h3>
 
-                <h3 class="font-bold
-                           text-[#0F2D5C]">
+            <div
+                class="grid grid-cols-1
+                       md:grid-cols-2 gap-4"
+            >
 
-                    Measurement Comparison
+                ${renderComparisonDetailCard(
+                    'Measurement A',
+                    detailA,
+                    {
+                        ...sessionA,
+                        equipmentName:
+                            itemA.equipmentName
+                    }
+                )}
 
+                ${renderComparisonDetailCard(
+                    'Measurement B',
+                    detailB,
+                    {
+                        ...sessionB,
+                        equipmentName:
+                            itemB.equipmentName
+                    }
+                )}
+
+            </div>
+
+        </div>
+
+
+        {{-- =============================================== --}}
+        {{-- COMPARISON TABLE --}}
+        {{-- =============================================== --}}
+
+        <div class="mt-5">
+
+            <div class="mb-3">
+
+                <h3
+                    class="font-bold
+                           text-[#0F2D5C]"
+                >
+                    Measurement Point Comparison
                 </h3>
 
-                <p class="text-sm text-gray-500 mt-1">
-
-                    Overall vibration comparison
-                    by measurement point
-
+                <p class="text-xs text-gray-500 mt-1">
+                    A = ${escapeHtml(
+                        itemA.equipmentName
+                    )} · ${escapeHtml(
+                        formatDateOnly(
+                            sessionA.inspectionDate
+                        )
+                    )}
+                    &nbsp; | &nbsp;
+                    B = ${escapeHtml(
+                        itemB.equipmentName
+                    )} · ${escapeHtml(
+                        formatDateOnly(
+                            sessionB.inspectionDate
+                        )
+                    )}
                 </p>
 
             </div>
 
 
-            <div class="overflow-x-auto">
+            <div
+                class="overflow-x-auto
+                       border border-gray-200
+                       rounded-xl"
+            >
 
                 <table class="w-full text-sm">
 
-                    <thead class="bg-white">
+                    <thead class="bg-gray-50">
 
                         <tr>
 
-                            <th rowspan="2"
+                            <th
                                 class="px-4 py-3
                                        text-left
-                                       whitespace-nowrap">
-
+                                       font-semibold
+                                       text-gray-600"
+                            >
                                 Point
-
                             </th>
 
-
-                            <th rowspan="2"
+                            <th
                                 class="px-4 py-3
                                        text-left
-                                       whitespace-nowrap">
-
+                                       font-semibold
+                                       text-gray-600"
+                            >
                                 Direction
-
                             </th>
 
-
-                            <th colspan="2"
-                                class="px-4 py-2
-                                       text-center
-                                       border-l
-                                       border-gray-200">
-
-                                <div class="font-semibold
-                                            text-[#0F2D5C]">
-
-                                    A · ${escapeHtml(
-                                        itemA.equipmentName
-                                    )}
-
-                                </div>
-
-                                <div class="text-xs
-                                            text-gray-500
-                                            font-normal mt-0.5">
-
-                                    ${escapeHtml(
-                                        formatDateOnly(
-                                            sessionA.inspectionDate
-                                        )
-                                    )}
-
-                                </div>
-
-                            </th>
-
-
-                            <th colspan="2"
-                                class="px-4 py-2
-                                       text-center
-                                       border-l
-                                       border-gray-200">
-
-                                <div class="font-semibold
-                                            text-[#0F2D5C]">
-
-                                    B · ${escapeHtml(
-                                        itemB.equipmentName
-                                    )}
-
-                                </div>
-
-                                <div class="text-xs
-                                            text-gray-500
-                                            font-normal mt-0.5">
-
-                                    ${escapeHtml(
-                                        formatDateOnly(
-                                            sessionB.inspectionDate
-                                        )
-                                    )}
-
-                                </div>
-
-                            </th>
-
-
-                            <th rowspan="2"
+                            <th
                                 class="px-4 py-3
                                        text-right
-                                       whitespace-nowrap
-                                       border-l
-                                       border-gray-200">
+                                       font-semibold
+                                       text-gray-600"
+                            >
+                                A · ${escapeHtml(
+                                    formatDateOnly(
+                                        sessionA.inspectionDate
+                                    )
+                                )}
+                            </th>
 
+                            <th
+                                class="px-4 py-3
+                                       text-right
+                                       font-semibold
+                                       text-gray-600"
+                            >
+                                B · ${escapeHtml(
+                                    formatDateOnly(
+                                        sessionB.inspectionDate
+                                    )
+                                )}
+                            </th>
+
+                            <th
+                                class="px-4 py-3
+                                       text-right
+                                       font-semibold
+                                       text-gray-600"
+                            >
                                 Δ Value
-
                             </th>
 
-
-                            <th rowspan="2"
+                            <th
                                 class="px-4 py-3
                                        text-right
-                                       whitespace-nowrap">
-
+                                       font-semibold
+                                       text-gray-600"
+                            >
                                 Δ %
-
                             </th>
 
-                        </tr>
-
-
-                        <tr class="border-t
-                                   border-gray-100">
-
-                            <th class="px-4 py-2
-                                       text-right
-                                       text-xs
-                                       text-gray-500">
-
-                                Overall
-
-                            </th>
-
-
-                            <th class="px-4 py-2
+                            <th
+                                class="px-4 py-3
                                        text-center
-                                       text-xs
-                                       text-gray-500">
-
+                                       font-semibold
+                                       text-gray-600"
+                            >
                                 Severity
-
-                            </th>
-
-
-                            <th class="px-4 py-2
-                                       text-right
-                                       text-xs
-                                       text-gray-500">
-
-                                Overall
-
-                            </th>
-
-
-                            <th class="px-4 py-2
-                                       text-center
-                                       text-xs
-                                       text-gray-500">
-
-                                Severity
-
                             </th>
 
                         </tr>
@@ -2494,22 +2810,159 @@ function renderComparison() {
                     </thead>
 
 
-                    <tbody>
+                    <tbody
+                        class="divide-y
+                               divide-gray-100"
+                    >
 
                         ${
-                            comparisonRows ||
-                            `
-                                <tr>
-                                    <td colspan="8"
-                                        class="px-4 py-8
-                                               text-center
-                                               text-gray-400">
+                            allRows.map(
+                                function (row) {
 
-                                        No measurement data available.
+                                    const measurement =
+                                        row.measurementA ||
+                                        row.measurementB;
 
-                                    </td>
-                                </tr>
-                            `
+
+                                    const deltaText =
+                                        row.delta !== null
+                                            ? (
+                                                row.delta > 0
+                                                    ? '+'
+                                                    : ''
+                                            ) +
+                                            Number(
+                                                row.delta
+                                            ).toFixed(2) +
+                                            ' ' +
+                                            vibrationDisplayUnit
+                                            : '-';
+
+
+                                    const severity =
+                                        row.measurementB
+                                            ?.severity ||
+                                        row.measurementA
+                                            ?.severity ||
+                                        'Pending';
+
+
+                                    return `
+
+                                        <tr
+                                            class="hover:bg-gray-50"
+                                        >
+
+                                            <td
+                                                class="px-4 py-3
+                                                       font-semibold
+                                                       text-gray-800
+                                                       whitespace-nowrap"
+                                            >
+                                                ${escapeHtml(
+                                                    measurement?.point ||
+                                                    '-'
+                                                )}
+                                            </td>
+
+
+                                            <td
+                                                class="px-4 py-3
+                                                       text-gray-600
+                                                       whitespace-nowrap"
+                                            >
+                                                ${escapeHtml(
+                                                    measurement?.direction ||
+                                                    '-'
+                                                )}
+                                            </td>
+
+
+                                            <td
+                                                class="px-4 py-3
+                                                       text-right
+                                                       font-semibold
+                                                       text-[#0F2D5C]
+                                                       whitespace-nowrap"
+                                            >
+                                                ${
+                                                    row.measurementA
+                                                        ? escapeHtml(
+                                                            formatComparisonValue(
+                                                                row.measurementA
+                                                            )
+                                                        )
+                                                        : '-'
+                                                }
+                                            </td>
+
+
+                                            <td
+                                                class="px-4 py-3
+                                                       text-right
+                                                       font-semibold
+                                                       text-[#0F2D5C]
+                                                       whitespace-nowrap"
+                                            >
+                                                ${
+                                                    row.measurementB
+                                                        ? escapeHtml(
+                                                            formatComparisonValue(
+                                                                row.measurementB
+                                                            )
+                                                        )
+                                                        : '-'
+                                                }
+                                            </td>
+
+
+                                            <td
+                                                class="px-4 py-3
+                                                       text-right
+                                                       font-semibold
+                                                       whitespace-nowrap
+                                                       ${deltaClass(
+                                                           row.delta
+                                                       )}"
+                                            >
+                                                ${escapeHtml(
+                                                    deltaText
+                                                )}
+                                            </td>
+
+
+                                            <td
+                                                class="px-4 py-3
+                                                       text-right
+                                                       font-semibold
+                                                       whitespace-nowrap
+                                                       ${deltaClass(
+                                                           row.deltaPercent
+                                                       )}"
+                                            >
+                                                ${escapeHtml(
+                                                    formatDeltaPercent(
+                                                        row.deltaPercent
+                                                    )
+                                                )}
+                                            </td>
+
+
+                                            <td
+                                                class="px-4 py-3
+                                                       text-center"
+                                            >
+                                                ${severityBadge(
+                                                    severity
+                                                )}
+                                            </td>
+
+                                        </tr>
+
+                                    `;
+
+                                }
+                            ).join('')
                         }
 
                     </tbody>
@@ -2521,41 +2974,37 @@ function renderComparison() {
         </div>
 
 
-        {{-- ================================================= --}}
-        {{-- VIBRATION TREND --}}
-        {{-- ================================================= --}}
+        {{-- =============================================== --}}
+        {{-- COMPARISON TREND --}}
+        {{-- =============================================== --}}
 
-        <div class="mt-6
-                    border border-gray-200
-                    rounded-xl overflow-hidden">
+        <div class="mt-5">
 
-            <div class="bg-gray-50
-                        px-5 py-4">
+            <div class="mb-3">
 
-                <h3 class="font-bold
-                           text-[#0F2D5C]">
-
-                    Vibration Trend Comparison
-
+                <h3
+                    class="font-bold
+                           text-[#0F2D5C]"
+                >
+                    Vibration Comparison Trend
                 </h3>
 
-                <p class="text-sm text-gray-500 mt-1">
-
-                    Selected inspection sessions
-                    plotted by measurement timestamp
-
+                <p class="text-xs text-gray-500 mt-1">
+                    Overall velocity comparison across measurement points.
                 </p>
 
             </div>
 
 
-            <div class="p-5">
+            <div
+                class="w-full h-[360px]
+                       border border-gray-200
+                       rounded-xl p-3"
+            >
 
-                <div class="w-full h-[340px]">
-
-                    <canvas id="comparisonTrendChart"></canvas>
-
-                </div>
+                <canvas
+                    id="comparisonVibrationChart"
+                ></canvas>
 
             </div>
 
@@ -2564,7 +3013,14 @@ function renderComparison() {
     `;
 
 
-    renderComparisonTrend(
+    /*
+    |--------------------------------------------------------------------------
+    | CREATE COMPARISON CHART
+    |--------------------------------------------------------------------------
+    */
+
+    createComparisonChart(
+        allRows,
         itemA,
         itemB
     );
@@ -2574,167 +3030,23 @@ function renderComparison() {
 
 /*
 |--------------------------------------------------------------------------
-| COMPARISON DETAIL CARD
+| COMPARISON CHART
 |--------------------------------------------------------------------------
 */
 
-function comparisonSessionCard(
-    item,
-    label
-) {
-
-    const session =
-        item.session;
-
-
-    const highest =
-        session.highestOverall !== null &&
-        session.highestOverall !== undefined
-            ? convertVibrationValue(
-                session.highestOverall,
-                'mm/s RMS'
-            )
-            : null;
-
-
-    const highestPoint =
-        session.highestPoint
-            ? `${escapeHtml(
-                session.highestPoint
-            )}${
-                session.highestDirection
-                    ? ` - ${escapeHtml(
-                        session.highestDirection
-                    )}`
-                    : ''
-            }`
-            : '-';
-
-
-    return `
-
-        <div class="border border-gray-200
-                    rounded-xl p-5">
-
-            <div class="flex items-center
-                        justify-between gap-3">
-
-                <div>
-
-                    <p class="text-xs uppercase
-                              tracking-wide
-                              text-gray-400
-                              font-semibold">
-
-                        ${label}
-
-                    </p>
-
-
-                    <h3 class="text-lg font-bold
-                               text-[#0F2D5C] mt-1">
-
-                        ${escapeHtml(
-                            item.equipmentName
-                        )}
-
-                    </h3>
-
-
-                    <p class="text-sm text-gray-500 mt-1">
-
-                        ${escapeHtml(
-                            item.area || '-'
-                        )}
-                        ·
-                        ${escapeHtml(
-                            formatDateOnly(
-                                session.inspectionDate
-                            )
-                        )}
-
-                    </p>
-
-                </div>
-
-
-                ${severityBadge(
-                    session.severity
-                )}
-
-            </div>
-
-
-            <div class="grid grid-cols-2
-                        md:grid-cols-3 gap-3 mt-5">
-
-                ${summaryCard(
-                    'Highest Overall',
-                    highest !== null
-                        ? `${highest.toFixed(2)}
-                           ${escapeHtml(
-                               vibrationDisplayUnit
-                           )}`
-                        : '-'
-                )}
-
-
-                ${summaryCard(
-                    'Highest Point',
-                    highestPoint
-                )}
-
-
-                ${summaryCard(
-                    'Measurement Points',
-                    `${session.measurementCount || 0} points`
-                )}
-
-
-                ${summaryCard(
-                    'Inspector',
-                    escapeHtml(
-                        session.inspector || '-'
-                    )
-                )}
-
-
-                ${summaryCard(
-                    'Inspection Date',
-                    escapeHtml(
-                        formatDateOnly(
-                            session.inspectionDate
-                        )
-                    )
-                )}
-
-            </div>
-
-        </div>
-
-    `;
-
-}
-
-
-/*
-|--------------------------------------------------------------------------
-| COMPARISON TREND CHART
-|--------------------------------------------------------------------------
-*/
-
-let comparisonTrendChart =
+let comparisonVibrationChart =
     null;
 
 
-function renderComparisonTrend(
+function createComparisonChart(
+    rows,
     itemA,
     itemB
 ) {
 
     const canvas =
         document.getElementById(
-            'comparisonTrendChart'
+            'comparisonVibrationChart'
         );
 
 
@@ -2743,121 +3055,90 @@ function renderComparisonTrend(
     }
 
 
-    if (comparisonTrendChart) {
+    if (
+        typeof Chart ===
+        'undefined'
+    ) {
 
-        comparisonTrendChart.destroy();
+        console.warn(
+            'Chart.js belum tersedia.'
+        );
 
-        comparisonTrendChart =
+        return;
+
+    }
+
+
+    if (
+        comparisonVibrationChart
+    ) {
+
+        comparisonVibrationChart.destroy();
+
+        comparisonVibrationChart =
             null;
 
     }
 
 
-    const measurementsA =
-        (itemA.session.measurements || [])
-            .filter(function (measurement) {
+    const labels =
+        rows.map(
+            function (row) {
+
+                const measurement =
+                    row.measurementA ||
+                    row.measurementB;
+
 
                 return (
-                    measurement.overall !== null &&
-                    measurement.overall !== undefined &&
-                    measurement.datetime
+                    measurement?.point ||
+                    '-'
+                ) +
+                (
+                    measurement?.direction
+                        ? ` - ${measurement.direction}`
+                        : ''
                 );
 
-            });
+            }
+        );
 
 
-    const measurementsB =
-        (itemB.session.measurements || [])
-            .filter(function (measurement) {
+    const dataA =
+        rows.map(
+            function (row) {
 
-                return (
-                    measurement.overall !== null &&
-                    measurement.overall !== undefined &&
-                    measurement.datetime
-                );
-
-            });
-
-
-    /*
-    |--------------------------------------------------------------------------
-    | Since A and B can be different equipment,
-    | plot each inspection session as its own
-    | point on the comparison trend.
-    |--------------------------------------------------------------------------
-    */
-
-    const highestA =
-        measurementsA.length
-            ? measurementsA.reduce(
-                function (max, measurement) {
-
-                    return Number(
-                        measurement.overall
-                    ) > Number(
-                        max.overall
+                return row.measurementA
+                    ? convertVibrationValue(
+                        row.measurementA.overall,
+                        row.measurementA.unit ||
+                        'mm/s RMS'
                     )
-                        ? measurement
-                        : max;
+                    : null;
 
-                }
-            )
-            : null;
+            }
+        );
 
 
-    const highestB =
-        measurementsB.length
-            ? measurementsB.reduce(
-                function (max, measurement) {
+    const dataB =
+        rows.map(
+            function (row) {
 
-                    return Number(
-                        measurement.overall
-                    ) > Number(
-                        max.overall
+                return row.measurementB
+                    ? convertVibrationValue(
+                        row.measurementB.overall,
+                        row.measurementB.unit ||
+                        'mm/s RMS'
                     )
-                        ? measurement
-                        : max;
+                    : null;
 
-                }
-            )
-            : null;
+            }
+        );
 
 
-    const labels = [
-        `${itemA.equipmentName} · ${formatDateOnly(itemA.session.inspectionDate)}`,
-        `${itemB.equipmentName} · ${formatDateOnly(itemB.session.inspectionDate)}`
-    ];
-
-
-    const dataA = [
-        highestA
-            ? convertVibrationValue(
-                highestA.overall,
-                highestA.unit || 'mm/s RMS'
-            )
-            : null,
-        null
-    ];
-
-
-    const dataB = [
-        null,
-        highestB
-            ? convertVibrationValue(
-                highestB.overall,
-                highestB.unit || 'mm/s RMS'
-            )
-            : null
-    ];
-
-
-    const ctx =
-        canvas.getContext('2d');
-
-
-    comparisonTrendChart =
+    comparisonVibrationChart =
         new Chart(
-            ctx,
+            canvas.getContext('2d'),
             {
 
                 type: 'line',
@@ -2869,19 +3150,21 @@ function renderComparisonTrend(
                     datasets: [
 
                         {
-                            label:
-                                `A · ${itemA.equipmentName}`,
 
-                            data:
-                                dataA,
+                            label:
+                                `A · ${itemA.equipmentName} · ${formatDateOnly(itemA.session.inspectionDate)}`,
+
+                            data: dataA,
 
                             borderWidth: 2,
 
-                            pointRadius: 6,
+                            pointRadius: 5,
 
-                            pointHoverRadius: 8,
+                            pointHoverRadius: 7,
 
                             tension: 0.2,
+
+                            spanGaps: true,
 
                             fill: false
 
@@ -2889,19 +3172,21 @@ function renderComparisonTrend(
 
 
                         {
-                            label:
-                                `B · ${itemB.equipmentName}`,
 
-                            data:
-                                dataB,
+                            label:
+                                `B · ${itemB.equipmentName} · ${formatDateOnly(itemB.session.inspectionDate)}`,
+
+                            data: dataB,
 
                             borderWidth: 2,
 
-                            pointRadius: 6,
+                            pointRadius: 5,
 
-                            pointHoverRadius: 8,
+                            pointHoverRadius: 7,
 
                             tension: 0.2,
+
+                            spanGaps: true,
 
                             fill: false
 
@@ -2919,10 +3204,21 @@ function renderComparisonTrend(
                     maintainAspectRatio: false,
 
 
+                    interaction: {
+
+                        mode: 'index',
+
+                        intersect: false
+
+                    },
+
+
                     plugins: {
 
                         legend: {
+
                             display: true
+
                         },
 
 
@@ -2953,16 +3249,24 @@ function renderComparisonTrend(
                                             context.parsed.y;
 
 
+                                        if (
+                                            !Number.isFinite(
+                                                value
+                                            )
+                                        ) {
+
+                                            return (
+                                                context.dataset.label +
+                                                ': -'
+                                            );
+
+                                        }
+
+
                                         return (
                                             context.dataset.label +
                                             ': ' +
-                                            (
-                                                Number.isFinite(
-                                                    value
-                                                )
-                                                    ? value.toFixed(2)
-                                                    : '-'
-                                            ) +
+                                            value.toFixed(2) +
                                             ' ' +
                                             vibrationDisplayUnit
                                         );
@@ -2993,6 +3297,7 @@ function renderComparisonTrend(
 
                         },
 
+
                         x: {
 
                             title: {
@@ -3000,7 +3305,7 @@ function renderComparisonTrend(
                                 display: true,
 
                                 text:
-                                    'Inspection Session'
+                                    'Measurement Point'
 
                             }
 
@@ -4010,19 +4315,59 @@ updateAllVibrationDisplays();
 
 
 function formatDateOnly(value) {
+
     if (!value) {
         return '-';
     }
 
-    const date = new Date(String(value).replace(' ', 'T'));
 
-    return Number.isNaN(date.getTime())
-        ? String(value)
-        : date.toLocaleDateString('id-ID', {
-            day: '2-digit',
-            month: 'short',
-            year: 'numeric'
-        });
+    const raw =
+        String(value)
+            .replace('T', ' ')
+            .substring(0, 10);
+
+
+    const parts =
+        raw.split('-');
+
+
+    if (parts.length !== 3) {
+        return raw;
+    }
+
+
+    const year = parts[0];
+    const month = parts[1];
+    const day = parts[2];
+
+
+    const monthNames = [
+        'Jan',
+        'Feb',
+        'Mar',
+        'Apr',
+        'May',
+        'Jun',
+        'Jul',
+        'Aug',
+        'Sep',
+        'Oct',
+        'Nov',
+        'Dec'
+    ];
+
+
+    const monthIndex =
+        Number(month) - 1;
+
+
+    const monthName =
+        monthNames[monthIndex] ||
+        month;
+
+
+    return `${day} ${monthName} ${year}`;
+
 }
 
 function formatDateTime(value) {
@@ -4083,7 +4428,6 @@ document.addEventListener('keydown', function (event) {
 {{-- CHART.JS --}}
 {{-- ========================================================= --}}
 
-@if(count($trendLabels))
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
@@ -4368,37 +4712,44 @@ document.addEventListener('keydown', function (event) {
                             tooltip: {
 
                                 callbacks: {
-    title: function(tooltipItems) {
+    title: function (tooltipItems) {
 
-        const index = tooltipItems[0]?.dataIndex;
+    const index =
+        tooltipItems[0]?.dataIndex;
 
-        if (
-            index === undefined ||
-            !trendLabels[index]
-        ) {
-            return '-';
-        }
+    const timestamp =
+        String(
+            trendTimestamps[index] || ''
+        )
+        .replace('T', ' ')
+        .substring(0, 19);
 
-        const timestamp =
-            trendLabels[index];
+    if (!timestamp) {
+        return ['-'];
+    }
 
-        const date =
-            new Date(timestamp);
+    const datePart =
+        timestamp.substring(0, 10);
 
-        if (isNaN(date.getTime())) {
-            return timestamp;
-        }
+    const timePart =
+        timestamp.substring(11, 19);
 
-        return date.toLocaleDateString(
-            'en-GB',
-            {
-                day: '2-digit',
-                month: 'short',
-                year: 'numeric'
-            }
-        );
+    const parts =
+        datePart.split('-');
 
-    },
+    if (parts.length !== 3) {
+        return [
+            datePart,
+            'Time: ' + timePart
+        ];
+    }
+
+    return [
+        `${parts[2]}-${parts[1]}-${parts[0]}`,
+        'Time: ' + timePart
+    ];
+
+},
 
     beforeBody: function(tooltipItems) {
 
@@ -4546,6 +4897,15 @@ document.addEventListener('keydown', function (event) {
 
     </script>
 
-@endif
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+
+    // chart utama
+    // tooltip
+    // unit selector
+    // comparison chart
+
+</script>
 
 @endsection
