@@ -168,44 +168,46 @@ class DashboardController extends Controller
         |
         */
 
-        $trendResults = collect();
+       $trendResults = collect();
 
-        if (
-            $selectedEquipmentId &&
+if (
+    $selectedEquipmentId &&
+    $selectedPointId
+) {
+
+    $trendResults =
+        MeasurementResult::with([
+            'equipmentInspection.inspection',
+            'measurementPoint',
+        ])
+        ->where(
+            'measurement_point_id',
             $selectedPointId
-        ) {
+        )
+        ->whereHas(
+            'equipmentInspection',
+            function ($query) use (
+                $selectedEquipmentId
+            ) {
+                $query->where(
+                    'equipment_id',
+                    $selectedEquipmentId
+                );
+            }
+        )
+        ->get()
+        ->sortBy(function ($result) {
 
-            $trendResults =
-                MeasurementResult::with([
-                    'equipmentInspection.inspection',
-                    'measurementPoint',
-                ])
-                ->where(
-                    'measurement_point_id',
-                    $selectedPointId
-                )
-                ->whereNotNull(
-                    'measurement_datetime'
-                )
-                ->whereHas(
-                    'equipmentInspection',
-                    function ($query) use (
-                        $selectedEquipmentId
-                    ) {
-                        $query->where(
-                            'equipment_id',
-                            $selectedEquipmentId
-                        );
-                    }
-                )
-                ->get()
-                ->sortBy(function ($result) {
+            return
+                $result->measurement_datetime
+                ?? optional(
+                    $result->equipmentInspection?->inspection
+                )->inspection_date
+                ?? $result->created_at;
 
-                    return $result->measurement_datetime;
-
-                })
-                ->values();
-        }
+        })
+        ->values();
+}
 
 
         /*
