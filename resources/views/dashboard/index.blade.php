@@ -4646,8 +4646,11 @@ document.addEventListener('keydown', function (event) {
 
         if (chartElement) {
 
-            const ctx =
-                chartElement.getContext('2d');
+            if (typeof Chart === 'undefined') {
+                console.warn('Chart.js not loaded for dashboardVibrationTrend');
+            } else {
+                const ctx =
+                    chartElement.getContext('2d');
 
 
             dashboardVibrationChart =
@@ -4751,40 +4754,7 @@ document.addEventListener('keydown', function (event) {
 
 },
 
-    beforeBody: function(tooltipItems) {
 
-        const index =
-            tooltipItems[0]?.dataIndex;
-
-        if (
-            index === undefined ||
-            !trendLabels[index]
-        ) {
-            return [];
-        }
-
-        const date =
-            new Date(
-                trendLabels[index]
-            );
-
-        if (isNaN(date.getTime())) {
-            return [];
-        }
-
-        return [
-            'Time: ' +
-            date.toLocaleTimeString(
-                'en-GB',
-                {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    second: '2-digit'
-                }
-            )
-        ];
-
-    },
 
     label: function(context) {
 
@@ -4807,36 +4777,7 @@ document.addEventListener('keydown', function (event) {
 },
 
 
-                                    label:
-                                        function (
-                                            context
-                                        ) {
 
-                                            const value =
-                                                context.parsed.y;
-
-
-                                            if (
-                                                !Number.isFinite(
-                                                    value
-                                                )
-                                            ) {
-                                                return [
-                                                    'Overall Velocity: -'
-                                                ];
-                                            }
-
-
-                                            return [
-                                                'Overall Velocity (' +
-                                                vibrationDisplayUnit +
-                                                '): ' +
-                                                value.toFixed(2) +
-                                                ' ' +
-                                                vibrationDisplayUnit
-                                            ];
-
-                                        }
 
                                 }
 
@@ -4882,6 +4823,7 @@ document.addEventListener('keydown', function (event) {
 
                 });
 
+            }
         }
 
 
@@ -4896,16 +4838,5 @@ document.addEventListener('keydown', function (event) {
         updateTrendSummary();
 
     </script>
-
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
-<script>
-
-    // chart utama
-    // tooltip
-    // unit selector
-    // comparison chart
-
-</script>
 
 @endsection
