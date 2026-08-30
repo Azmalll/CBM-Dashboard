@@ -4432,438 +4432,103 @@ document.addEventListener('keydown', function (event) {
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <script>
-
-        /*
-        |--------------------------------------------------------------------------
-        | RAW TREND DATA
-        |--------------------------------------------------------------------------
-        */
-
-        const trendLabels =
-            @json($trendLabels);
-
-        const trendValues =
-            @json($trendValues);
-
-        const trendTimestamps =
-            @json($trendTimestamps ?? []);
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | CHART INSTANCE
-        |--------------------------------------------------------------------------
-        */
-
+        const trendLabels = @json($trendLabels);
+        const trendValues = @json($trendValues);
+        const trendTimestamps = @json($trendTimestamps ?? []);
         let dashboardVibrationChart = null;
 
-
-        /*
-        |--------------------------------------------------------------------------
-        | UPDATE UNIT BUTTON UI
-        |--------------------------------------------------------------------------
-        */
-
         function updateVibrationUnitUI() {
-
-            const mmButton =
-                document.getElementById(
-                    'unitMmSButton'
-                );
-
-            const inchButton =
-                document.getElementById(
-                    'unitInchSButton'
-                );
-
-
-            const activeClasses =
-                [
-                    'bg-[#0F2D5C]',
-                    'text-white',
-                    'shadow-sm'
-                ];
-
-            const inactiveClasses =
-                [
-                    'text-gray-600',
-                    'hover:bg-gray-100'
-                ];
-
-
+            const mmButton = document.getElementById('unitMmSButton');
+            const inchButton = document.getElementById('unitInchSButton');
+            const activeClasses = ['bg-[#0F2D5C]', 'text-white', 'shadow-sm'];
+            const inactiveClasses = ['text-gray-600', 'hover:bg-gray-100'];
             if (mmButton) {
-
-                mmButton.classList.remove(
-                    ...activeClasses,
-                    ...inactiveClasses
-                );
-
-                if (
-                    vibrationDisplayUnit ===
-                    'mm/s RMS'
-                ) {
-
-                    mmButton.classList.add(
-                        ...activeClasses
-                    );
-
-                } else {
-
-                    mmButton.classList.add(
-                        ...inactiveClasses
-                    );
-
-                }
-
+                mmButton.classList.remove(...activeClasses, ...inactiveClasses);
+                mmButton.classList.add(...(vibrationDisplayUnit === 'mm/s RMS' ? activeClasses : inactiveClasses));
             }
-
-
             if (inchButton) {
-
-                inchButton.classList.remove(
-                    ...activeClasses,
-                    ...inactiveClasses
-                );
-
-                if (
-                    vibrationDisplayUnit ===
-                    'inch/s RMS'
-                ) {
-
-                    inchButton.classList.add(
-                        ...activeClasses
-                    );
-
-                } else {
-
-                    inchButton.classList.add(
-                        ...inactiveClasses
-                    );
-
-                }
-
+                inchButton.classList.remove(...activeClasses, ...inactiveClasses);
+                inchButton.classList.add(...(vibrationDisplayUnit === 'inch/s RMS' ? activeClasses : inactiveClasses));
             }
-
         }
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | UPDATE CURRENT / PREVIOUS
-        |--------------------------------------------------------------------------
-        */
 
         function updateTrendSummary() {
-
-            const currentElement =
-                document.getElementById(
-                    'currentTrendValueDisplay'
-                );
-
-            const previousElement =
-                document.getElementById(
-                    'previousTrendValueDisplay'
-                );
-
-
+            const currentElement = document.getElementById('currentTrendValueDisplay');
+            const previousElement = document.getElementById('previousTrendValueDisplay');
             if (currentElement) {
-
-                const currentValue =
-                    currentElement.dataset.value;
-
-                currentElement.textContent =
-                    formatVibrationValue(
-                        currentValue
-                    );
-
+                const v = currentElement.dataset.value;
+                currentElement.textContent = formatVibrationValue(v);
             }
-
-
             if (previousElement) {
-
-                const previousValue =
-                    previousElement.dataset.value;
-
-                previousElement.textContent =
-                    formatVibrationValue(
-                        previousValue
-                    );
-
+                const v = previousElement.dataset.value;
+                previousElement.textContent = formatVibrationValue(v);
             }
-
         }
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | UPDATE CHART DATA / LABEL / AXIS
-        |--------------------------------------------------------------------------
-        */
 
         function updateVibrationChart() {
+            if (!dashboardVibrationChart) return;
+            dashboardVibrationChart.data.datasets[0].data = trendValues.map(function(value) { return convertVibrationValue(value); });
+            dashboardVibrationChart.data.datasets[0].label = 'Overall Velocity (' + vibrationDisplayUnit + ')';
+            dashboardVibrationChart.options.scales.y.title.text = vibrationDisplayUnit;
+            dashboardVibrationChart.update();
+        }
 
-            if (!dashboardVibrationChart) {
+        (function initDashboardChart() {
+            const chartElement = document.getElementById('dashboardVibrationTrend');
+            if (!chartElement) return;
+            if (typeof Chart === 'undefined') {
+                console.warn('Chart.js not loaded for dashboardVibrationTrend');
                 return;
             }
-
-
-            dashboardVibrationChart.data.datasets[0].data =
-                trendValues.map(function (value) {
-
-                    return convertVibrationValue(
-                        value
-                    );
-
-                });
-
-
-            dashboardVibrationChart.data.datasets[0].label =
-                'Overall Velocity (' +
-                vibrationDisplayUnit +
-                ')';
-
-
-            dashboardVibrationChart.options.scales.y.title.text =
-                vibrationDisplayUnit;
-
-
-            dashboardVibrationChart.update();
-
-        }
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | CREATE CHART
-        |--------------------------------------------------------------------------
-        */
-
-        const chartElement =
-            document.getElementById(
-                'dashboardVibrationTrend'
-            );
-
-
-        if (chartElement) {
-
-            const ctx =
-                chartElement.getContext('2d');
-
-
-            dashboardVibrationChart =
-                new Chart(ctx, {
-
-                    type: 'line',
-
-                    data: {
-
-                        labels:
-                            trendLabels,
-
-                        datasets: [
-
-                            {
-
-                                label:
-                                    'Overall Velocity (' +
-                                    vibrationDisplayUnit +
-                                    ')',
-
-                                data:
-                                    trendValues.map(
-                                        function (value) {
-                                            return convertVibrationValue(
-                                                value
-                                            );
-                                        }
-                                    ),
-
-                                borderWidth: 2,
-
-                                pointRadius: 5,
-
-                                pointHoverRadius: 7,
-
-                                tension: 0.25,
-
-                                fill: false
-
-                            }
-
-                        ]
-
-                    },
-
-
-                    options: {
-
-                        responsive: true,
-
-                        maintainAspectRatio: false,
-
-
-                        plugins: {
-
-                            legend: {
-                                display: true
-                            },
-
-
-                            tooltip: {
-
-                                callbacks: {
-    title: function (tooltipItems) {
-
-    const index =
-        tooltipItems[0]?.dataIndex;
-
-    const timestamp =
-        String(
-            trendTimestamps[index] || ''
-        )
-        .replace('T', ' ')
-        .substring(0, 19);
-
-    if (!timestamp) {
-        return ['-'];
-    }
-
-    const datePart =
-        timestamp.substring(0, 10);
-
-    const timePart =
-        timestamp.substring(11, 19);
-
-    const parts =
-        datePart.split('-');
-
-    if (parts.length !== 3) {
-        return [
-            datePart,
-            'Time: ' + timePart
-        ];
-    }
-
-    return [
-        `${parts[2]}-${parts[1]}-${parts[0]}`,
-        'Time: ' + timePart
-    ];
-
-},
-
-    beforeBody: function(tooltipItems) {
-
-        const index =
-            tooltipItems[0]?.dataIndex;
-
-        if (
-            index === undefined ||
-            !trendLabels[index]
-        ) {
-            return [];
-        }
-
-        const date =
-            new Date(
-                trendLabels[index]
-            );
-
-        if (isNaN(date.getTime())) {
-            return [];
-        }
-
-        return [
-            'Time: ' +
-            date.toLocaleTimeString(
-                'en-GB',
-                {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                    second: '2-digit'
-                }
-            )
-        ];
-
-    },
-
-    label: function(context) {
-
-        const value =
-            context.parsed.y;
-
-        return (
-            context.dataset.label +
-            ': ' +
-            (
-                Number.isFinite(value)
-                    ? value.toFixed(2)
-                    : '-'
-            ) +
-            ' ' +
-            vibrationDisplayUnit
-        );
-
-    }
-},
-
-
+            const ctx = chartElement.getContext('2d');
+            dashboardVibrationChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: trendLabels,
+                    datasets: [{
+                        label: 'Overall Velocity (' + vibrationDisplayUnit + ')',
+                        data: trendValues.map(function(value) { return convertVibrationValue(value); }),
+                        borderWidth: 2,
+                        pointRadius: 5,
+                        pointHoverRadius: 7,
+                        tension: 0.25,
+                        fill: false
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: true },
+                        tooltip: {
+                            callbacks: {
+                                title: function(tooltipItems) {
+                                    const idx = tooltipItems[0]?.dataIndex;
+                                    const ts = String(trendTimestamps[idx] || '').replace('T', ' ').substring(0, 19);
+                                    if (!ts) return ['-'];
+                                    const datePart = ts.substring(0, 10);
+                                    const timePart = ts.substring(11, 19);
+                                    const parts = datePart.split('-');
+                                    if (parts.length !== 3) return [datePart, 'Time: ' + timePart];
+                                    return [parts[2] + '-' + parts[1] + '-' + parts[0], 'Time: ' + timePart];
+                                },
+                                label: function(context) {
+                                    const v = context.parsed.y;
+                                    return context.dataset.label + ': ' + (Number.isFinite(v) ? v.toFixed(2) : '-') + ' ' + vibrationDisplayUnit;
                                 }
-
                             }
-
                         }
-
                     },
-
-
                     scales: {
-
-                        y: {
-
-                            beginAtZero: true,
-
-                            title: {
-
-                                display: true,
-
-                                text:
-                                    vibrationDisplayUnit
-
-                            }
-
-                        },
-
-
-                        x: {
-
-                            title: {
-
-                                display: true,
-
-                                text:
-                                    'Measurement Date & Time'
-
-                            }
-
-                        }
-
+                        y: { beginAtZero: true, title: { display: true, text: vibrationDisplayUnit } },
+                        x: { title: { display: true, text: 'Measurement Date & Time' } }
                     }
-
-                });
-
-        }
-
-
-        /*
-        |--------------------------------------------------------------------------
-        | INITIALIZE UNIT UI
-        |--------------------------------------------------------------------------
-        */
+                }
+            });
+        })();
 
         updateVibrationUnitUI();
-
         updateTrendSummary();
-
     </script>
 
 @endsection
