@@ -2404,19 +2404,19 @@ function renderComparison() {
     |--------------------------------------------------------------------------
     */
 
-    const firstCommon =
-        commonRows[0];
+    function findHighestMeasurement(measurements) {
+        if (!Array.isArray(measurements) || !measurements.length) return null;
+        let best = null;
+        let bestVal = -Infinity;
+        measurements.forEach(function(m) {
+            const v = Number(m?.overall);
+            if (Number.isFinite(v) && v > bestVal) { bestVal = v; best = m; }
+        });
+        return best;
+    }
 
-
-    const detailA =
-        firstCommon
-            ? firstCommon.measurementA
-            : null;
-
-    const detailB =
-        firstCommon
-            ? firstCommon.measurementB
-            : null;
+    const detailA = findHighestMeasurement(sessionA.measurements || []);
+    const detailB = findHighestMeasurement(sessionB.measurements || []);
 
 
     /*
@@ -2697,9 +2697,7 @@ function renderComparison() {
                 Operating Parameters Comparison
             </h3>
 
-            <p class="text-xs text-gray-500 mb-3">
-                A = ${escapeHtml(itemA.equipmentName)} · ${escapeHtml(formatDateOnly(sessionA.inspectionDate))} &nbsp;|&nbsp; B = ${escapeHtml(itemB.equipmentName)} · ${escapeHtml(formatDateOnly(sessionB.inspectionDate))}
-            </p>
+            
 
             <div class="overflow-x-auto border border-gray-200 rounded-xl">
                 <table class="w-full text-sm">
@@ -2777,23 +2775,7 @@ function renderComparison() {
                     Measurement Point Comparison
                 </h3>
 
-                <p class="text-xs text-gray-500 mt-1">
-                    A = ${escapeHtml(
-                        itemA.equipmentName
-                    )} · ${escapeHtml(
-                        formatDateOnly(
-                            sessionA.inspectionDate
-                        )
-                    )}
-                    &nbsp; | &nbsp;
-                    B = ${escapeHtml(
-                        itemB.equipmentName
-                    )} · ${escapeHtml(
-                        formatDateOnly(
-                            sessionB.inspectionDate
-                        )
-                    )}
-                </p>
+                
 
             </div>
 
@@ -2834,11 +2816,7 @@ function renderComparison() {
                                        font-semibold
                                        text-gray-600"
                             >
-                                A · ${escapeHtml(
-                                    formatDateOnly(
-                                        sessionA.inspectionDate
-                                    )
-                                )}
+                                A
                             </th>
 
                             <th
@@ -2847,11 +2825,7 @@ function renderComparison() {
                                        font-semibold
                                        text-gray-600"
                             >
-                                B · ${escapeHtml(
-                                    formatDateOnly(
-                                        sessionB.inspectionDate
-                                    )
-                                )}
+                                B
                             </th>
 
                             <th
