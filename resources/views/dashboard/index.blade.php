@@ -2686,6 +2686,82 @@ function renderComparison() {
         </div>
 
 
+
+        {{-- =============================================== --}}
+        {{-- OPERATING PARAMETERS COMPARISON --}}
+        {{-- =============================================== --}}
+
+        <div class="mt-5">
+
+            <h3 class="font-bold text-[#0F2D5C] mb-3">
+                Operating Parameters Comparison
+            </h3>
+
+            <p class="text-xs text-gray-500 mb-3">
+                A = ${escapeHtml(itemA.equipmentName)} · ${escapeHtml(formatDateOnly(sessionA.inspectionDate))} &nbsp;|&nbsp; B = ${escapeHtml(itemB.equipmentName)} · ${escapeHtml(formatDateOnly(sessionB.inspectionDate))}
+            </p>
+
+            <div class="overflow-x-auto border border-gray-200 rounded-xl">
+                <table class="w-full text-sm">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-4 py-3 text-left font-semibold text-gray-600">Parameter</th>
+                            <th class="px-4 py-3 text-right font-semibold text-gray-600">A</th>
+                            <th class="px-4 py-3 text-right font-semibold text-gray-600">B</th>
+                            <th class="px-4 py-3 text-right font-semibold text-gray-600">Δ Value</th>
+                            <th class="px-4 py-3 text-right font-semibold text-gray-600">Δ %</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100">
+                        ${(() => {
+                            const params = [
+                                { key: 'speed_rpm', label: 'Speed', unit: 'RPM' },
+                                { key: 'suction_pressure', label: 'Suction Pressure', unit: 'Psi' },
+                                { key: 'discharge_pressure', label: 'Discharge Pressure', unit: 'Psi' },
+                                { key: 'flow_rate', label: 'Flow Rate', unit: 'USGPM' },
+                                { key: 'bearing_temp_m_out', label: 'Bearing Temp M-Out', unit: '°C' },
+                                { key: 'bearing_temp_m_in', label: 'Bearing Temp M-In', unit: '°C' },
+                                { key: 'bearing_temp_p_in', label: 'Bearing Temp P-In', unit: '°C' },
+                                { key: 'bearing_temp_p_out', label: 'Bearing Temp P-Out', unit: '°C' },
+                            ];
+                            const opA = sessionA.operatingParameters || {};
+                            const opB = sessionB.operatingParameters || {};
+                            function parseNum(v) {
+                                if (v === null || v === undefined || v === '') return null;
+                                const n = Number(String(v).replace(',', '.'));
+                                return Number.isFinite(n) ? n : null;
+                            }
+                            return params.map(function(p) {
+                                const rawA = opA[p.key];
+                                const rawB = opB[p.key];
+                                const numA = parseNum(rawA);
+                                const numB = parseNum(rawB);
+                                const dispA = (rawA === null || rawA === undefined || rawA === '') ? '-' : escapeHtml(String(rawA)) + ' ' + p.unit;
+                                const dispB = (rawB === null || rawB === undefined || rawB === '') ? '-' : escapeHtml(String(rawB)) + ' ' + p.unit;
+                                let deltaText = '-';
+                                let deltaPercentText = '-';
+                                let deltaCls = '';
+                                if (numA !== null && numB !== null) {
+                                    const delta = numB - numA;
+                                    const pct = numA !== 0 ? (delta / numA * 100) : null;
+                                    deltaText = (delta > 0 ? '+' : '') + delta.toFixed(2) + ' ' + p.unit;
+                                    deltaPercentText = pct !== null ? (pct > 0 ? '+' : '') + pct.toFixed(2) + '%' : '-';
+                                    deltaCls = delta > 0 ? 'text-red-600' : (delta < 0 ? 'text-green-600' : 'text-gray-600');
+                                }
+                                return '<tr class="hover:bg-gray-50">' +
+                                    '<td class="px-4 py-3 font-semibold text-gray-800">' + escapeHtml(p.label) + '</td>' +
+                                    '<td class="px-4 py-3 text-right font-semibold text-[#0F2D5C]">' + dispA + '</td>' +
+                                    '<td class="px-4 py-3 text-right font-semibold text-[#0F2D5C]">' + dispB + '</td>' +
+                                    '<td class="px-4 py-3 text-right font-semibold ' + deltaCls + '">' + escapeHtml(deltaText) + '</td>' +
+                                    '<td class="px-4 py-3 text-right font-semibold ' + deltaCls + '">' + escapeHtml(deltaPercentText) + '</td>' +
+                                '</tr>';
+                            }).join('');
+                        })()}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
         {{-- =============================================== --}}
         {{-- COMPARISON TABLE --}}
         {{-- =============================================== --}}

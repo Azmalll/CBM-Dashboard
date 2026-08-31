@@ -234,17 +234,17 @@ if (
             | X-AXIS LABEL
             |--------------------------------------------------------------------------
             |
-            | Tanggal + jam measurement.
+            | Tanggal measurement (tanpa jam, jam detail di tooltip).
             |
             | Contoh:
-            | 04 Aug 14:27
+            | 04 Aug 2026
             |
             */
 
             $trendLabels[] =
                 $measurementDatetime
                     ? date(
-                        'd M H:i',
+                        'd M Y',
                         strtotime(
                             $measurementDatetime
                         )
