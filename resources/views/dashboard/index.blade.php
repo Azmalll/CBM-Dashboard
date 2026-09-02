@@ -3815,6 +3815,9 @@ function openInspectionDetail(historyIndex) {
     }
 
     activeHistoryIndex = historyIndex;
+    const isHealthyBaseline =
+        historyIndex === activeEquipmentData.healthyHistoryIndex;
+
 
     const historyView = document.getElementById('equipmentHistoryView');
     const measurementView = document.getElementById('equipmentMeasurementView');
