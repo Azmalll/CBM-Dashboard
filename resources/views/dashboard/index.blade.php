@@ -155,6 +155,29 @@
                     })
                     ->first();
 
+                if (!$healthySession) {
+                    $healthySession = $history
+                        ->filter(function ($inspection) {
+                            return ($inspection['severity'] ?? null) === 'Normal';
+                        })
+                        ->sortBy(function ($inspection) {
+                            return strtotime(
+                                (string) ($inspection['inspectionDate'] ?? '9999-12-31')
+                            );
+                        })
+                        ->first();
+                }
+
+                if (!$healthySession) {
+                    $healthySession = $history
+                        ->sortBy(function ($inspection) {
+                            return strtotime(
+                                (string) ($inspection['inspectionDate'] ?? '9999-12-31')
+                            );
+                        })
+                        ->first();
+                }
+
                 $healthyHistoryIndex = $healthySession
                     ? $history->search(
                         fn ($item) => $item['id'] === $healthySession['id']
