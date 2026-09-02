@@ -243,6 +243,26 @@ Route::middleware('auth')->group(function () {
 
     /*
 |--------------------------------------------------------------------------
+| TEMPORARY DEBUG - REMOVE AFTER USE
+| Shows production DB host (no password). Admin only.
+|--------------------------------------------------------------------------
+*/
+
+Route::get(
+    '/_db-info',
+    function () {
+        abort_unless(auth()->user()?->isAdmin(), 403);
+
+        return response()
+            ->view('debug.db-info')
+            ->header('Cache-Control', 'no-store');
+    }
+)
+    ->middleware(RoleMiddleware::class . ':admin');
+
+
+    /*
+|--------------------------------------------------------------------------
 | OPERATING PARAMETERS - EDIT
 |--------------------------------------------------------------------------
 */
