@@ -369,7 +369,7 @@
 
 
             {{-- FLOW --}}
-            <div class="mb-8">
+            <div class="mb-6">
 
                 <label
                     for="flow_rate"
@@ -400,6 +400,295 @@
                                  text-gray-600 font-semibold">
                         USGPM
                     </span>
+
+                </div>
+
+            </div>
+
+
+            {{-- LOAD CURRENT --}}
+            <div class="mb-6">
+
+                <h2 class="text-lg font-bold text-[#0F2D5C] mb-1">
+                    Motor Load Current
+                </h2>
+
+                <p class="text-sm text-gray-500 mb-4">
+                    Arus motor 3 phase (clamp per fase).
+                    Imbalance dihitung otomatis.
+                </p>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+
+                    <div>
+
+                        <label
+                            for="current_phase_1"
+                            class="block font-semibold text-gray-700 mb-2"
+                        >
+                            Current Phase 1 (L1)
+                        </label>
+
+                        <div class="flex gap-3">
+
+                            <input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                id="current_phase_1"
+                                name="current_phase_1"
+                                value="{{ old(
+                                    'current_phase_1',
+                                    $parameters['current_phase_1'] ?? ''
+                                ) }}"
+                                class="w-full border border-gray-300
+                                       rounded-xl px-4 py-3"
+                            >
+
+                            <span class="flex items-center
+                                         px-4 rounded-xl bg-gray-100
+                                         text-gray-600 font-semibold">
+                                A
+                            </span>
+
+                        </div>
+
+                    </div>
+
+
+                    <div>
+
+                        <label
+                            for="current_phase_2"
+                            class="block font-semibold text-gray-700 mb-2"
+                        >
+                            Current Phase 2 (L2)
+                        </label>
+
+                        <div class="flex gap-3">
+
+                            <input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                id="current_phase_2"
+                                name="current_phase_2"
+                                value="{{ old(
+                                    'current_phase_2',
+                                    $parameters['current_phase_2'] ?? ''
+                                ) }}"
+                                class="w-full border border-gray-300
+                                       rounded-xl px-4 py-3"
+                            >
+
+                            <span class="flex items-center
+                                         px-4 rounded-xl bg-gray-100
+                                         text-gray-600 font-semibold">
+                                A
+                            </span>
+
+                        </div>
+
+                    </div>
+
+
+                    <div>
+
+                        <label
+                            for="current_phase_3"
+                            class="block font-semibold text-gray-700 mb-2"
+                        >
+                            Current Phase 3 (L3)
+                        </label>
+
+                        <div class="flex gap-3">
+
+                            <input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                id="current_phase_3"
+                                name="current_phase_3"
+                                value="{{ old(
+                                    'current_phase_3',
+                                    $parameters['current_phase_3'] ?? ''
+                                ) }}"
+                                class="w-full border border-gray-300
+                                       rounded-xl px-4 py-3"
+                            >
+
+                            <span class="flex items-center
+                                         px-4 rounded-xl bg-gray-100
+                                         text-gray-600 font-semibold">
+                                A
+                            </span>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            {{-- BENTLEY PROXIMITY (SHAFT DISPLACEMENT) --}}
+            <div class="mb-8">
+
+                <h2 class="text-lg font-bold text-[#0F2D5C] mb-1">
+                    Bentley Shaft Displacement (Proximity)
+                </h2>
+
+                <p class="text-sm text-gray-500 mb-4">
+                    Pembacaan proximitors 3300 —
+                    <strong>µm peak-to-peak</strong> radial.
+                    (1 mil = 25.4 µm)
+                </p>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+                    <div>
+
+                        <label
+                            for="bentley_motor_x"
+                            class="block font-semibold text-gray-700 mb-2"
+                        >
+                            Bentley Motor X (Radial)
+                        </label>
+
+                        <div class="flex gap-3">
+
+                            <input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                id="bentley_motor_x"
+                                name="bentley_motor_x"
+                                value="{{ old(
+                                    'bentley_motor_x',
+                                    $parameters['bentley_motor_x'] ?? ''
+                                ) }}"
+                                class="w-full border border-gray-300
+                                       rounded-xl px-4 py-3"
+                            >
+
+                            <span class="flex items-center
+                                         px-4 rounded-xl bg-gray-100
+                                         text-gray-600 font-semibold">
+                                µm p-p
+                            </span>
+
+                        </div>
+
+                    </div>
+
+
+                    <div>
+
+                        <label
+                            for="bentley_motor_y"
+                            class="block font-semibold text-gray-700 mb-2"
+                        >
+                            Bentley Motor Y (Radial)
+                        </label>
+
+                        <div class="flex gap-3">
+
+                            <input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                id="bentley_motor_y"
+                                name="bentley_motor_y"
+                                value="{{ old(
+                                    'bentley_motor_y',
+                                    $parameters['bentley_motor_y'] ?? ''
+                                ) }}"
+                                class="w-full border border-gray-300
+                                       rounded-xl px-4 py-3"
+                            >
+
+                            <span class="flex items-center
+                                         px-4 rounded-xl bg-gray-100
+                                         text-gray-600 font-semibold">
+                                µm p-p
+                            </span>
+
+                        </div>
+
+                    </div>
+
+
+                    <div>
+
+                        <label
+                            for="bentley_pump_x"
+                            class="block font-semibold text-gray-700 mb-2"
+                        >
+                            Bentley Pump X (Radial)
+                        </label>
+
+                        <div class="flex gap-3">
+
+                            <input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                id="bentley_pump_x"
+                                name="bentley_pump_x"
+                                value="{{ old(
+                                    'bentley_pump_x',
+                                    $parameters['bentley_pump_x'] ?? ''
+                                ) }}"
+                                class="w-full border border-gray-300
+                                       rounded-xl px-4 py-3"
+                            >
+
+                            <span class="flex items-center
+                                         px-4 rounded-xl bg-gray-100
+                                         text-gray-600 font-semibold">
+                                µm p-p
+                            </span>
+
+                        </div>
+
+                    </div>
+
+
+                    <div>
+
+                        <label
+                            for="bentley_pump_y"
+                            class="block font-semibold text-gray-700 mb-2"
+                        >
+                            Bentley Pump Y (Radial)
+                        </label>
+
+                        <div class="flex gap-3">
+
+                            <input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                id="bentley_pump_y"
+                                name="bentley_pump_y"
+                                value="{{ old(
+                                    'bentley_pump_y',
+                                    $parameters['bentley_pump_y'] ?? ''
+                                ) }}"
+                                class="w-full border border-gray-300
+                                       rounded-xl px-4 py-3"
+                            >
+
+                            <span class="flex items-center
+                                         px-4 rounded-xl bg-gray-100
+                                         text-gray-600 font-semibold">
+                                µm p-p
+                            </span>
+
+                        </div>
+
+                    </div>
 
                 </div>
 

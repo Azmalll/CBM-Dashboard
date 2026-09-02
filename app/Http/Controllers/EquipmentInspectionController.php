@@ -233,6 +233,48 @@ class EquipmentInspectionController extends Controller
                 'min:0',
             ],
 
+            'current_phase_1' => [
+                'nullable',
+                'numeric',
+                'min:0',
+            ],
+
+            'current_phase_2' => [
+                'nullable',
+                'numeric',
+                'min:0',
+            ],
+
+            'current_phase_3' => [
+                'nullable',
+                'numeric',
+                'min:0',
+            ],
+
+            'bentley_motor_x' => [
+                'nullable',
+                'numeric',
+                'min:0',
+            ],
+
+            'bentley_motor_y' => [
+                'nullable',
+                'numeric',
+                'min:0',
+            ],
+
+            'bentley_pump_x' => [
+                'nullable',
+                'numeric',
+                'min:0',
+            ],
+
+            'bentley_pump_y' => [
+                'nullable',
+                'numeric',
+                'min:0',
+            ],
+
         ]);
 
 
@@ -261,6 +303,27 @@ class EquipmentInspectionController extends Controller
 
             'flow_rate' =>
                 $validated['flow_rate'] ?? null,
+
+            'current_phase_1' =>
+                $validated['current_phase_1'] ?? null,
+
+            'current_phase_2' =>
+                $validated['current_phase_2'] ?? null,
+
+            'current_phase_3' =>
+                $validated['current_phase_3'] ?? null,
+
+            'bentley_motor_x' =>
+                $validated['bentley_motor_x'] ?? null,
+
+            'bentley_motor_y' =>
+                $validated['bentley_motor_y'] ?? null,
+
+            'bentley_pump_x' =>
+                $validated['bentley_pump_x'] ?? null,
+
+            'bentley_pump_y' =>
+                $validated['bentley_pump_y'] ?? null,
 
         ];
 

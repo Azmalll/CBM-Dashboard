@@ -11,6 +11,7 @@ use App\Http\Controllers\MeasurementResultController;
 use App\Http\Controllers\EquipmentInspectionController;
 use App\Http\Controllers\EquipmentInspectionReportController;
 use App\Http\Controllers\OdxImportController;
+use App\Http\Controllers\UnitCorrectionController;
 use App\Http\Middleware\RoleMiddleware;
 
 
@@ -259,7 +260,41 @@ Route::put(
     [EquipmentInspectionController::class, 'updateOperatingParameters']
 )
     ->middleware(RoleMiddleware::class . ':admin')
-    ->name('equipment-inspection.operating-parameters.update');        
+    ->name('equipment-inspection.operating-parameters.update');
+
+    /*
+|--------------------------------------------------------------------------
+| UNIT CORRECTION (BULK)
+|--------------------------------------------------------------------------
+*/
+
+Route::get(
+    '/unit-correction',
+    [UnitCorrectionController::class, 'index']
+)
+    ->middleware(RoleMiddleware::class . ':admin')
+    ->name('unit-correction.index');
+
+Route::post(
+    '/unit-correction/preview',
+    [UnitCorrectionController::class, 'preview']
+)
+    ->middleware(RoleMiddleware::class . ':admin')
+    ->name('unit-correction.preview');
+
+Route::post(
+    '/unit-correction/apply',
+    [UnitCorrectionController::class, 'apply']
+)
+    ->middleware(RoleMiddleware::class . ':admin')
+    ->name('unit-correction.apply');
+
+Route::post(
+    '/unit-correction/{logId}/undo',
+    [UnitCorrectionController::class, 'undo']
+)
+    ->middleware(RoleMiddleware::class . ':admin')
+    ->name('unit-correction.undo');
     /*
 
     

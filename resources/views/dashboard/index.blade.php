@@ -138,6 +138,29 @@
                     })
                     ->values();
 
+                /*
+                |--------------------------------------------------------------------------
+                | HEALTHIEST SESSION (OPTION A)
+                |--------------------------------------------------------------------------
+                |
+                | Session with the LOWEST MAX overall velocity
+                | = the healthiest operating baseline reference.
+                */
+                $healthySession = $history
+                    ->filter(function ($inspection) {
+                        return $inspection['highestOverall'] !== null;
+                    })
+                    ->sortBy(function ($inspection) {
+                        return (float) $inspection['highestOverall'];
+                    })
+                    ->first();
+
+                $healthyHistoryIndex = $healthySession
+                    ? $history->search(
+                        fn ($item) => $item['id'] === $healthySession['id']
+                    )
+                    : null;
+
                 return [
                     (string) $equipment->id => [
                         'name' => $equipment->equipment_name,
@@ -257,6 +280,10 @@
                                 })->all(),
                             ];
                         })->all(),
+
+                        'healthySession' => $healthySession,
+
+                        'healthyHistoryIndex' => $healthyHistoryIndex,
                     ],
                 ];
             })->all();
@@ -1032,6 +1059,27 @@
                    overflow-hidden"
         >
 
+            {{-- HEALTHIEST BASELINE BANNER --}}
+            <div
+                id="comparisonBaselineBanner"
+                class="hidden px-6 py-3 bg-green-50 border-b border-green-200"
+            >
+                <div class="flex items-center justify-between gap-3">
+                    <p class="text-sm text-green-800">
+                        <span class="font-bold">● HEALTHIEST BASELINE</span>
+                        <span id="comparisonBaselineText" class="ml-1"></span>
+                    </p>
+                    <button
+                        type="button"
+                        onclick="prefillComparisonFromBaseline()"
+                        class="shrink-0 px-3 py-1.5 rounded-lg bg-green-600
+                               text-white text-xs font-semibold hover:bg-green-700"
+                    >
+                        ⇄ Compare with Baseline
+                    </button>
+                </div>
+            </div>
+
             {{-- HEADER --}}
             <div
                 class="px-6 py-5 border-b border-gray-200
@@ -1505,6 +1553,19 @@ function openComparisonModal() {
     resetComparisonDateSelector('B');
 
 
+    const baselineBanner =
+        document.getElementById(
+            'comparisonBaselineBanner'
+        );
+
+
+    if (baselineBanner) {
+
+        baselineBanner.classList.add('hidden');
+
+    }
+
+
     const result =
         document.getElementById(
             'comparisonResult'
@@ -1706,7 +1767,257 @@ function updateComparisonDates(side) {
         history.length === 0;
 
 
+    if (side === 'A') {
+
+        updateComparisonBaselineBanner(
+            equipmentId
+        );
+
+    }
+
+
     renderComparison();
+
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| HEALTHIEST BASELINE BANNER
+|--------------------------------------------------------------------------
+|
+| Shows the healthiest session (lowest max overall) of the
+| equipment selected in Measurement A.
+*/
+
+function updateComparisonBaselineBanner(equipmentId) {
+
+    const banner =
+        document.getElementById(
+            'comparisonBaselineBanner'
+        );
+
+    if (!banner) {
+
+        return;
+
+    }
+
+
+    const equipment =
+        equipmentDetailData[String(equipmentId)];
+
+
+    const healthy =
+        equipment?.healthySession;
+
+
+    if (!equipmentId || !healthy) {
+
+        banner.classList.add('hidden');
+
+        return;
+
+    }
+
+
+    const text =
+        document.getElementById(
+            'comparisonBaselineText'
+        );
+
+
+    if (text) {
+
+        const pointLabel =
+            healthy.highestPoint
+                ? healthy.highestPoint +
+                    (healthy.highestDirection
+                        ? ' - ' + healthy.highestDirection
+                        : '')
+                : '-';
+
+        text.textContent =
+            ` · ${healthy.highestOverall} mm/s RMS @ ${pointLabel}` +
+            ` · ${formatDateOnly(healthy.inspectionDate)}`;
+
+    }
+
+
+    banner.classList.remove('hidden');
+
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| PREFILL COMPARISON FROM BASELINE
+|--------------------------------------------------------------------------
+|
+| A = healthiest session (reference)
+| B = latest session
+*/
+
+function prefillComparisonFromBaseline() {
+
+    const equipmentSelectA =
+        document.getElementById(
+            'comparisonEquipmentA'
+        );
+
+
+    const equipmentSelectB =
+        document.getElementById(
+            'comparisonEquipmentB'
+        );
+
+
+    if (
+        !equipmentSelectA ||
+        !equipmentSelectB
+    ) {
+
+        return;
+
+    }
+
+
+    const equipmentId =
+        equipmentSelectA.value;
+
+
+    if (!equipmentId) {
+
+        return;
+
+    }
+
+
+    const equipment =
+        equipmentDetailData[String(equipmentId)];
+
+
+    const healthyIndex =
+        equipment?.healthyHistoryIndex;
+
+
+    if (
+        healthyIndex === null ||
+        healthyIndex === undefined
+    ) {
+
+        return;
+
+    }
+
+
+    const dateSelectA =
+        document.getElementById(
+            'comparisonDateA'
+        );
+
+
+    const dateSelectB =
+        document.getElementById(
+            'comparisonDateB'
+        );
+
+
+    // Same equipment on both sides.
+    equipmentSelectB.value = equipmentId;
+
+
+    // A = healthiest, B = latest (index 0).
+    dateSelectA.value = String(healthyIndex);
+    dateSelectB.value = '0';
+
+
+    renderComparison();
+
+}
+
+
+/*
+|--------------------------------------------------------------------------
+| OPEN COMPARISON FROM BASELINE (EQUIPMENT DETAIL MODAL)
+|--------------------------------------------------------------------------
+|
+| Called from the healthiest session's Operating Parameters
+| card in the equipment detail modal.
+|
+| A = the healthiest session (passed history index)
+| B = latest session
+*/
+
+function openComparisonFromBaseline(healthiestIndex) {
+
+    // Find the equipment id that owns activeEquipmentData.
+    const equipmentId = Object.keys(
+        equipmentDetailData || {}
+    ).find(function (key) {
+        return equipmentDetailData[key] === activeEquipmentData;
+    });
+
+
+    if (!equipmentId) {
+
+        return;
+
+    }
+
+
+    const equipmentSelectA =
+        document.getElementById(
+            'comparisonEquipmentA'
+        );
+
+
+    const equipmentSelectB =
+        document.getElementById(
+            'comparisonEquipmentB'
+        );
+
+
+    if (!equipmentSelectA || !equipmentSelectB) {
+
+        return;
+
+    }
+
+
+    // Close the equipment detail modal, open the comparison.
+    closeEquipmentDetail();
+
+
+    // Populate both equipment selects (required before date selects).
+    equipmentSelectA.value = equipmentId;
+    updateComparisonDates('A');
+
+
+    equipmentSelectB.value = equipmentId;
+    updateComparisonDates('B');
+
+
+    const dateSelectA =
+        document.getElementById(
+            'comparisonDateA'
+        );
+
+
+    const dateSelectB =
+        document.getElementById(
+            'comparisonDateB'
+        );
+
+
+    if (dateSelectA && dateSelectB) {
+
+        dateSelectA.value = String(healthiestIndex);
+        dateSelectB.value = '0';
+
+        renderComparison();
+
+    }
 
 }
 
@@ -2721,6 +3032,13 @@ function renderComparison() {
                                 { key: 'bearing_temp_m_in', label: 'Bearing Temp M-In', unit: '°C' },
                                 { key: 'bearing_temp_p_in', label: 'Bearing Temp P-In', unit: '°C' },
                                 { key: 'bearing_temp_p_out', label: 'Bearing Temp P-Out', unit: '°C' },
+                                { key: 'current_phase_1', label: 'Current Phase 1 (L1)', unit: 'A' },
+                                { key: 'current_phase_2', label: 'Current Phase 2 (L2)', unit: 'A' },
+                                { key: 'current_phase_3', label: 'Current Phase 3 (L3)', unit: 'A' },
+                                { key: 'bentley_motor_x', label: 'Bentley Motor X', unit: 'µm p-p' },
+                                { key: 'bentley_motor_y', label: 'Bentley Motor Y', unit: 'µm p-p' },
+                                { key: 'bentley_pump_x', label: 'Bentley Pump X', unit: 'µm p-p' },
+                                { key: 'bentley_pump_y', label: 'Bentley Pump Y', unit: 'µm p-p' },
                             ];
                             const opA = sessionA.operatingParameters || {};
                             const opB = sessionB.operatingParameters || {};
@@ -2729,6 +3047,37 @@ function renderComparison() {
                                 const n = Number(String(v).replace(',', '.'));
                                 return Number.isFinite(n) ? n : null;
                             }
+                            function currentImbalance(op) {
+                                const ph = [op.current_phase_1, op.current_phase_2, op.current_phase_3].map(parseNum);
+                                if (ph.length !== 3 || ph.some(v => v === null)) return null;
+                                const mean = (ph[0] + ph[1] + ph[2]) / 3;
+                                if (mean === 0) return null;
+                                return Math.max(Math.abs(ph[0] - mean), Math.abs(ph[1] - mean), Math.abs(ph[2] - mean)) / mean * 100;
+                            }
+                            const imbA = currentImbalance(opA);
+                            const imbB = currentImbalance(opB);
+                            let imbText = '-';
+                            let imbDeltaText = '-';
+                            let imbDeltaCls = '';
+                            if (imbA !== null && imbB !== null) {
+                                const imbDelta = imbB - imbA;
+                                imbText = imbA.toFixed(1) + ' %';
+                                imbDeltaText = (imbDelta > 0 ? '+' : '') + imbDelta.toFixed(1) + ' %';
+                                imbDeltaCls = imbDelta > 0 ? 'text-red-600' : (imbDelta < 0 ? 'text-green-600' : 'text-gray-600');
+                            } else if (imbA !== null) {
+                                imbText = imbA.toFixed(1) + ' %';
+                            } else if (imbB !== null) {
+                                imbText = imbB.toFixed(1) + ' %';
+                            }
+                            const imbRow =
+                                '<tr class="hover:bg-gray-50 bg-amber-50/40">' +
+                                '<td class="px-4 py-3 font-semibold text-gray-800">Current Imbalance (auto)</td>' +
+                                '<td class="px-4 py-3 text-right font-semibold text-[#0F2D5C]">' + (imbA !== null ? imbA.toFixed(1) + ' %' : '-') + '</td>' +
+                                '<td class="px-4 py-3 text-right font-semibold text-[#0F2D5C]">' + (imbB !== null ? imbB.toFixed(1) + ' %' : '-') + '</td>' +
+                                '<td class="px-4 py-3 text-right font-semibold ' + imbDeltaCls + '">' + imbDeltaText + '</td>' +
+                                '<td class="px-4 py-3 text-right font-semibold ' + imbDeltaCls + '">-</td>' +
+                                '</tr>';
+
                             return params.map(function(p) {
                                 const rawA = opA[p.key];
                                 const rawB = opB[p.key];
@@ -2753,7 +3102,7 @@ function renderComparison() {
                                     '<td class="px-4 py-3 text-right font-semibold ' + deltaCls + '">' + escapeHtml(deltaText) + '</td>' +
                                     '<td class="px-4 py-3 text-right font-semibold ' + deltaCls + '">' + escapeHtml(deltaPercentText) + '</td>' +
                                 '</tr>';
-                            }).join('');
+                            }).join('') + imbRow;
                         })()}
                     </tbody>
                 </table>
@@ -3412,6 +3761,9 @@ function renderEquipmentHistory() {
         return;
     }
 
+    const healthyIndex =
+        activeEquipmentData.healthyHistoryIndex;
+
     content.innerHTML = activeEquipmentData.history.map((session, index) => `
         <button
             type="button"
@@ -3425,6 +3777,7 @@ function renderEquipmentHistory() {
                             ${escapeHtml(formatDateOnly(session.inspectionDate))}
                         </span>
                         ${severityBadge(session.severity)}
+                        ${index === healthyIndex ? `<span class="px-3 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700">● HEALTHIEST BASELINE</span>` : ''}
                     </div>
 
                     <div class="grid grid-cols-1 sm:grid-cols-3 gap-x-6 gap-y-1 mt-3 text-sm text-gray-500">
@@ -3503,6 +3856,41 @@ function openInspectionDetail(historyIndex) {
 
         const operatingParameters = session.operatingParameters || {};
 
+    const parameterValueNum = (key) => {
+        const value = operatingParameters[key];
+        if (value === null || value === undefined || value === '') return null;
+        const n = Number(String(value).replace(',', '.'));
+        return Number.isFinite(n) ? n : null;
+    };
+
+        const currentImbalanceOp = (() => {
+            const ph = [
+                operatingParameters['current_phase_1'],
+                operatingParameters['current_phase_2'],
+                operatingParameters['current_phase_3'],
+            ].map(parameterValueNum);
+
+            if (ph.some(v => v === null)) return null;
+
+            const mean = (ph[0] + ph[1] + ph[2]) / 3;
+
+            if (mean === 0) return null;
+
+            return Math.max(
+                Math.abs(ph[0] - mean),
+                Math.abs(ph[1] - mean),
+                Math.abs(ph[2] - mean)
+            ) / mean * 100;
+        })();
+
+        const imbalanceCls = currentImbalanceOp === null
+            ? 'text-gray-400'
+            : (currentImbalanceOp < 5
+                ? 'text-green-600'
+                : (currentImbalanceOp < 10
+                    ? 'text-yellow-600'
+                    : 'text-red-600'));
+
     const parameterValue = (key, unit) => {
         const value = operatingParameters[key];
 
@@ -3563,6 +3951,21 @@ function openInspectionDetail(historyIndex) {
                           `
                         : ''
                 }
+
+                ${index === healthyIndex ? `
+                <button
+                    type="button"
+                    onclick="openComparisonFromBaseline(${index})"
+                    class="inline-flex items-center justify-center
+                           px-4 py-2 rounded-lg
+                           bg-green-600 text-white
+                           hover:bg-green-700
+                           text-sm font-semibold"
+                    title="Session ini = healthiest baseline. Bandingkan dengan session terbaru."
+                >
+                    ⇄ Compare with Baseline
+                </button>
+                ` : ''}
 
             </div>
 
@@ -3638,6 +4041,80 @@ function openInspectionDetail(historyIndex) {
                     </p>
                     <p class="mt-1">
                         ${parameterValue('bearing_temp_p_out', '°C')}
+                    </p>
+                </div>
+
+                <div>
+                    <p class="text-sm text-gray-500">
+                        Current Phase 1 (L1)
+                    </p>
+                    <p class="mt-1">
+                        ${parameterValue('current_phase_1', 'A')}
+                    </p>
+                </div>
+
+                <div>
+                    <p class="text-sm text-gray-500">
+                        Current Phase 2 (L2)
+                    </p>
+                    <p class="mt-1">
+                        ${parameterValue('current_phase_2', 'A')}
+                    </p>
+                </div>
+
+                <div>
+                    <p class="text-sm text-gray-500">
+                        Current Phase 3 (L3)
+                    </p>
+                    <p class="mt-1">
+                        ${parameterValue('current_phase_3', 'A')}
+                    </p>
+                </div>
+
+                <div>
+                    <p class="text-sm text-gray-500">
+                        Current Imbalance
+                    </p>
+                    <p class="mt-1">
+                        ${currentImbalanceOp !== null
+                            ? `<span class="text-xl font-semibold ${imbalanceCls}">${currentImbalanceOp.toFixed(1)}</span><span class="text-sm font-normal text-gray-500"> %</span>`
+                            : `<span class="text-gray-400">-</span><span class="text-sm font-normal text-gray-400"> %</span>`}
+                    </p>
+                </div>
+
+                <div>
+                    <p class="text-sm text-gray-500">
+                        Bentley Motor X
+                    </p>
+                    <p class="mt-1">
+                        ${parameterValue('bentley_motor_x', 'µm p-p')}
+                    </p>
+                </div>
+
+                <div>
+                    <p class="text-sm text-gray-500">
+                        Bentley Motor Y
+                    </p>
+                    <p class="mt-1">
+                        ${parameterValue('bentley_motor_y', 'µm p-p')}
+                    </p>
+                </div>
+
+                <div>
+                    <p class="text-sm text-gray-500">
+                        Bentley Pump X
+                    </p>
+                    <p class="mt-1">
+                        ${parameterValue('bentley_pump_x', 'µm p-p')}
+                    </p>
+                </div>
+
+                <div>
+                    <p class="text-sm text-gray-500">
+                        Bentley Pump Y
+                    </p>
+                    <p class="mt-1">
+                        ${parameterValue('bentley_pump_y', 'µm p-p')}
                     </p>
                 </div>
 

@@ -1,0 +1,2535 @@
+diff --git a/app/Http/Controllers/EquipmentInspectionController.php b/app/Http/Controllers/EquipmentInspectionController.php
+index 528355c..646c160 100644
+--- a/app/Http/Controllers/EquipmentInspectionController.php
++++ b/app/Http/Controllers/EquipmentInspectionController.php
+@@ -233,6 +233,48 @@ public function updateOperatingParameters(
+                 'min:0',
+             ],
+ 
++            'current_phase_1' => [
++                'nullable',
++                'numeric',
++                'min:0',
++            ],
++
++            'current_phase_2' => [
++                'nullable',
++                'numeric',
++                'min:0',
++            ],
++
++            'current_phase_3' => [
++                'nullable',
++                'numeric',
++                'min:0',
++            ],
++
++            'bentley_motor_x' => [
++                'nullable',
++                'numeric',
++                'min:0',
++            ],
++
++            'bentley_motor_y' => [
++                'nullable',
++                'numeric',
++                'min:0',
++            ],
++
++            'bentley_pump_x' => [
++                'nullable',
++                'numeric',
++                'min:0',
++            ],
++
++            'bentley_pump_y' => [
++                'nullable',
++                'numeric',
++                'min:0',
++            ],
++
+         ]);
+ 
+ 
+@@ -262,6 +304,27 @@ public function updateOperatingParameters(
+             'flow_rate' =>
+                 $validated['flow_rate'] ?? null,
+ 
++            'current_phase_1' =>
++                $validated['current_phase_1'] ?? null,
++
++            'current_phase_2' =>
++                $validated['current_phase_2'] ?? null,
++
++            'current_phase_3' =>
++                $validated['current_phase_3'] ?? null,
++
++            'bentley_motor_x' =>
++                $validated['bentley_motor_x'] ?? null,
++
++            'bentley_motor_y' =>
++                $validated['bentley_motor_y'] ?? null,
++
++            'bentley_pump_x' =>
++                $validated['bentley_pump_x'] ?? null,
++
++            'bentley_pump_y' =>
++                $validated['bentley_pump_y'] ?? null,
++
+         ];
+ 
+ 
+diff --git a/app/Http/Controllers/UnitCorrectionController.php b/app/Http/Controllers/UnitCorrectionController.php
+new file mode 100644
+index 0000000..b9321c3
+--- /dev/null
++++ b/app/Http/Controllers/UnitCorrectionController.php
+@@ -0,0 +1,383 @@
++<?php
++
++namespace App\Http\Controllers;
++
++use App\Models\OperatingParameterCorrectionLog;
++use App\Services\UnitConversionService;
++use Illuminate\Http\Request;
++
++class UnitCorrectionController extends Controller
++{
++    /**
++     * Human-readable label for every correctable parameter.
++     */
++    private function parameterLabels(): array
++    {
++        return [
++            'suction_pressure'   => 'Suction Pressure',
++            'discharge_pressure' => 'Discharge Pressure',
++            'flow_rate'          => 'Flow Rate',
++            'bearing_temp_m_out' => 'Bearing Temp M-Out',
++            'bearing_temp_m_in'  => 'Bearing Temp M-In',
++            'bearing_temp_p_in'  => 'Bearing Temp P-In',
++            'bearing_temp_p_out' => 'Bearing Temp P-Out',
++            'current_phase_1'    => 'Current Phase 1 (L1)',
++            'current_phase_2'    => 'Current Phase 2 (L2)',
++            'current_phase_3'    => 'Current Phase 3 (L3)',
++            'bentley_motor_x'    => 'Bentley Motor X',
++            'bentley_motor_y'    => 'Bentley Motor Y',
++            'bentley_pump_x'     => 'Bentley Pump X',
++            'bentley_pump_y'     => 'Bentley Pump Y',
++        ];
++    }
++
++    /**
++     * Unit correction page: scope form + history.
++     */
++    public function index()
++    {
++        $areas = \App\Models\Equipment::query()
++            ->whereNotNull('area')
++            ->where('area', '!=', '')
++            ->distinct()
++            ->orderBy('area')
++            ->pluck('area');
++
++        $equipments = \App\Models\Equipment::query()
++            ->orderBy('equipment_name')
++            ->get([
++                'id',
++                'equipment_name',
++                'area',
++            ]);
++
++        $parameterUnits = UnitConversionService::parameterUnits();
++
++        $labels = $this->parameterLabels();
++
++        $parameterOptions = collect($parameterUnits)
++            ->map(function (array $units, string $key) use ($labels) {
++                return [
++                    'key'   => $key,
++                    'label' => $labels[$key] ?? $key,
++                    'units' => $units,
++                ];
++            })
++            ->values();
++
++        $logs = OperatingParameterCorrectionLog::query()
++            ->latest('id')
++            ->limit(50)
++            ->get();
++
++        return view(
++            'unit-correction.index',
++            compact(
++                'areas',
++                'equipments',
++                'parameterOptions',
++                'logs'
++            )
++        );
++    }
++
++    /**
++     * Dry-run: compute what would change, without touching data.
++     */
++    public function preview(Request $request)
++    {
++        $validated = $request->validate([
++            'area'           => ['nullable', 'string'],
++            'equipment_id'   => ['nullable', 'integer', 'exists:equipment,id'],
++            'parameter_key'  => ['required', 'string'],
++            'stored_unit'    => ['required', 'string'],
++            'actual_unit'    => ['required', 'string'],
++            'date_mode'      => ['required', 'in:all,single,range'],
++            'date_from'      => ['nullable', 'date'],
++            'date_to'        => ['nullable', 'date', 'after_or_equal:date_from'],
++        ]);
++
++        $result = $this->computeAffected($validated);
++
++        // Strip Eloquent models — the preview payload is JSON only.
++        $rows = array_map(function ($row) {
++            unset($row['record']);
++            return $row;
++        }, $result['rows']);
++
++        $result['rows'] = $rows;
++
++        $result['parameter_label'] = $this->parameterLabels()[
++            $validated['parameter_key']
++        ] ?? $validated['parameter_key'];
++
++        return response()->json($result);
++    }
++
++    /**
++     * Apply the correction after explicit confirmation.
++     */
++    public function apply(Request $request)
++    {
++        $validated = $request->validate([
++            'area'           => ['nullable', 'string'],
++            'equipment_id'   => ['nullable', 'integer', 'exists:equipment,id'],
++            'parameter_key'  => ['required', 'string'],
++            'stored_unit'    => ['required', 'string'],
++            'actual_unit'    => ['required', 'string'],
++            'date_mode'      => ['required', 'in:all,single,range'],
++            'date_from'      => ['nullable', 'date'],
++            'date_to'        => ['nullable', 'date', 'after_or_equal:date_from'],
++        ]);
++
++        $result = $this->computeAffected($validated);
++
++        if ($result['affected'] === 0) {
++            return redirect()
++                ->route('unit-correction.index')
++                ->with('error', 'Tidak ada data yang perlu diubah untuk scope ini.');
++        }
++
++        $labels = $this->parameterLabels();
++
++        $snapshot = [];
++
++        foreach ($result['rows'] as $row) {
++            $record = $row['record'];
++
++            $operatingParameters =
++                $record->operating_parameters ?? [];
++
++            $operatingParameters[$validated['parameter_key']] =
++                round($row['after'], 4);
++
++            $record->operating_parameters = $operatingParameters;
++            $record->save();
++
++            $snapshot[] = [
++                'record_id'       => $record->id,
++                'equipment_name'  => $row['equipment_name'],
++                'date'            => $row['date'],
++                'before'          => $row['before'],
++                'after'           => $row['after'],
++            ];
++        }
++
++        OperatingParameterCorrectionLog::create([
++            'user_id'           => $request->user()?->id,
++            'scope_description' => $result['scope_description'],
++            'parameter_key'     => $validated['parameter_key'],
++            'stored_unit'       => $validated['stored_unit'],
++            'actual_unit'       => $validated['actual_unit'],
++            'values'            => $snapshot,
++            'records_affected'  => $result['affected'],
++        ]);
++
++        return redirect()
++            ->route('unit-correction.index')
++            ->with(
++                'success',
++                sprintf(
++                    'Unit correction berhasil: %d record "%s" dikonversi (%s → %s).',
++                    $result['affected'],
++                    $labels[$validated['parameter_key']]
++                        ?? $validated['parameter_key'],
++                    $validated['stored_unit'],
++                    $validated['actual_unit']
++                )
++            );
++    }
++
++    /**
++     * Undo a previous correction using its stored snapshot.
++     */
++    public function undo(Request $request, int $logId)
++    {
++        $log = OperatingParameterCorrectionLog::findOrFail($logId);
++
++        if ($log->reverted_at !== null) {
++            return redirect()
++                ->route('unit-correction.index')
++                ->with('error', 'Correction ini sudah di-undo sebelumnya.');
++        }
++
++        $restored = 0;
++
++        foreach (($log->values ?? []) as $entry) {
++            $record = \App\Models\EquipmentInspection::find(
++                $entry['record_id'] ?? null
++            );
++
++            if (!$record) {
++                continue;
++            }
++
++            $operatingParameters =
++                $record->operating_parameters ?? [];
++
++            $operatingParameters[$log->parameter_key] =
++                $entry['before'];
++
++            $record->operating_parameters = $operatingParameters;
++            $record->save();
++
++            $restored++;
++        }
++
++        $log->reverted_at = now();
++        $log->save();
++
++        return redirect()
++            ->route('unit-correction.index')
++            ->with(
++                'success',
++                sprintf(
++                    'Undo berhasil: %d record dikembalikan ke nilai semula.',
++                    $restored
++                )
++            );
++    }
++
++    /**
++     * Collect every value in scope and compute the converted result.
++     *
++     * Returns:
++     * [
++     *   scope_description => string,
++     *   affected          => int,
++     *   rows              => [
++     *       record, equipment_name, date, before, after
++     *   ]
++     * ]
++     */
++    private function computeAffected(array $input): array
++    {
++        $query = \App\Models\EquipmentInspection::query()
++            ->whereNotNull('operating_parameters')
++            ->with(['equipment', 'inspection']);
++
++        if (!empty($input['equipment_id'])) {
++            $query->where('equipment_id', $input['equipment_id']);
++        } elseif (!empty($input['area'])) {
++            $query->whereHas(
++                'equipment',
++                function ($equipmentQuery) use ($input) {
++                    $equipmentQuery->where('area', $input['area']);
++                }
++            );
++        }
++
++        $dateMode = $input['date_mode'] ?? 'all';
++
++        if ($dateMode === 'single' && !empty($input['date_from'])) {
++            $query->whereHas(
++                'inspection',
++                function ($inspectionQuery) use ($input) {
++                    $inspectionQuery->whereDate(
++                        'inspection_date',
++                        $input['date_from']
++                    );
++                }
++            );
++        }
++
++        if ($dateMode === 'range') {
++            $query->whereHas(
++                'inspection',
++                function ($inspectionQuery) use ($input) {
++                    if (!empty($input['date_from'])) {
++                        $inspectionQuery->whereDate(
++                            'inspection_date',
++                            '>=',
++                            $input['date_from']
++                        );
++                    }
++
++                    if (!empty($input['date_to'])) {
++                        $inspectionQuery->whereDate(
++                            'inspection_date',
++                            '<=',
++                            $input['date_to']
++                        );
++                    }
++                }
++            );
++        }
++
++        $key = $input['parameter_key'];
++        $from = $input['stored_unit'];
++        $to = $input['actual_unit'];
++
++        $rows = [];
++
++        foreach ($query->get() as $record) {
++            $operatingParameters =
++                $record->operating_parameters ?? [];
++
++            $raw = $operatingParameters[$key] ?? null;
++
++            if ($raw === null || $raw === '') {
++                continue;
++            }
++
++            $value = filter_var($raw, FILTER_VALIDATE_FLOAT);
++
++            if ($value === false || $value === null) {
++                continue;
++            }
++
++            $after = UnitConversionService::convert($value, $from, $to);
++
++            if ($after === null) {
++                continue;
++            }
++
++            $rows[] = [
++                'record'         => $record,
++                'equipment_name' => $record->equipment?->equipment_name
++                    ?? '-',
++                'date'           => optional(
++                    $record->inspection
++                )->inspection_date,
++                'before'         => $value,
++                'after'          => round($after, 4),
++            ];
++        }
++
++        $rows = collect($rows)
++            ->sortBy(fn ($row) => (string) $row['date'])
++            ->values()
++            ->all();
++
++        /*
++        |--------------------------------------------------------------------------
++        | SCOPE DESCRIPTION
++        |--------------------------------------------------------------------------
++        */
++
++        $scopeParts = [];
++
++        if (!empty($input['equipment_id'])) {
++            $scopeParts[] = 'Equipment #' . $input['equipment_id'];
++        } elseif (!empty($input['area'])) {
++            $scopeParts[] = 'Area: ' . $input['area'];
++        } else {
++            $scopeParts[] = 'Semua area';
++        }
++
++        $scopeParts[] = match ($dateMode) {
++            'single' => 'Tgl: ' . ($input['date_from'] ?? '-'),
++            'range'  => 'Tgl: '
++                . ($input['date_from'] ?? 'mulai')
++                . ' - '
++                . ($input['date_to'] ?? 'sekarang'),
++            default  => 'Semua tanggal',
++        };
++
++        return [
++            'scope_description' => implode(' · ', $scopeParts),
++            'affected'          => count($rows),
++            'rows'              => $rows,
++        ];
++    }
++}
+diff --git a/app/Models/OperatingParameterCorrectionLog.php b/app/Models/OperatingParameterCorrectionLog.php
+new file mode 100644
+index 0000000..69f71ca
+--- /dev/null
++++ b/app/Models/OperatingParameterCorrectionLog.php
+@@ -0,0 +1,22 @@
++<?php
++
++namespace App\Models;
++
++use Illuminate\Database\Eloquent\Model;
++
++class OperatingParameterCorrectionLog extends Model
++{
++    protected $fillable = [
++        'user_id',
++        'scope_description',
++        'parameter_key',
++        'stored_unit',
++        'actual_unit',
++        'values',
++        'records_affected',
++    ];
++
++    protected $casts = [
++        'values' => 'array',
++    ];
++}
+diff --git a/app/Services/UnitConversionService.php b/app/Services/UnitConversionService.php
+new file mode 100644
+index 0000000..0cff43c
+--- /dev/null
++++ b/app/Services/UnitConversionService.php
+@@ -0,0 +1,158 @@
++<?php
++
++namespace App\Services;
++
++class UnitConversionService
++{
++    /**
++     * Operating parameters that support unit correction,
++     * and the allowed unit labels for each.
++     *
++     * The canonical (stored) unit for every parameter in the
++     * dashboard is the FIRST entry of each array.
++     */
++    public static function parameterUnits(): array
++    {
++        return [
++            'suction_pressure'   => ['Psi', 'Bar', 'kg/cm2'],
++            'discharge_pressure' => ['Psi', 'Bar', 'kg/cm2'],
++            'flow_rate'          => ['USGPM', 'LPM', 'm3/h'],
++            'bearing_temp_m_out' => ['°C', '°F'],
++            'bearing_temp_m_in'  => ['°C', '°F'],
++            'bearing_temp_p_in'  => ['°C', '°F'],
++            'bearing_temp_p_out' => ['°C', '°F'],
++            'current_phase_1'    => ['A'],
++            'current_phase_2'    => ['A'],
++            'current_phase_3'    => ['A'],
++            'bentley_motor_x'    => ['um', 'mil'],
++            'bentley_motor_y'    => ['um', 'mil'],
++            'bentley_pump_x'     => ['um', 'mil'],
++            'bentley_pump_y'     => ['um', 'mil'],
++        ];
++    }
++
++    /**
++     * Convert a raw value from one unit to another.
++     *
++     * @param  float  $value
++     * @param  string  $from  Unit the value is currently expressed in.
++     * @param  string  $to    Target unit.
++     * @return float|null     null when the pair is not convertible.
++     */
++    public static function convert(float $value, string $from, string $to): ?float
++    {
++        if (trim($from) === trim($to)) {
++            return $value;
++        }
++
++        $toBase = self::toBase($value, $from);
++
++        if ($toBase === null) {
++            return null;
++        }
++
++        return self::fromBase($toBase, $to);
++    }
++
++    /**
++     * Convert to an SI-ish base unit.
++     *
++     *  pressure -> Bar
++     *  flow     -> L/min
++     *  temp     -> Celsius
++     *  current  -> Ampere
++     *  shaft    -> micrometers
++     */
++    private static function toBase(float $value, string $unit): ?float
++    {
++        $unit = trim($unit);
++
++        if (in_array($unit, ['Psi', 'Bar', 'kg/cm2'], true)) {
++            return match ($unit) {
++                'Psi'    => $value * 0.0689476,
++                'kg/cm2' => $value * 0.980665,
++                default  => $value, // Bar
++            };
++        }
++
++        if (in_array($unit, ['USGPM', 'LPM', 'm3/h'], true)) {
++            return match ($unit) {
++                'USGPM' => $value * 3.78541,
++                'm3/h'  => $value * 1000 / 60,
++                default => $value, // L/min
++            };
++        }
++
++        if (in_array($unit, ['°C', '°F'], true)) {
++            return match ($unit) {
++                '°F'  => ($value - 32) * 5 / 9,
++                default => $value, // °C
++            };
++        }
++
++        if (in_array($unit, ['A', '%FLA'], true)) {
++            // %FLA cannot be converted without the nameplate FLA value.
++            return match ($unit) {
++                '%FLA' => null,
++                default => $value, // A
++            };
++        }
++
++        if (in_array($unit, ['um', 'mil'], true)) {
++            return match ($unit) {
++                'mil' => $value * 25.4,
++                default => $value, // um
++            };
++        }
++
++        return null;
++    }
++
++    /**
++     * Convert from a base unit to the requested display unit.
++     */
++    private static function fromBase(float $base, string $unit): ?float
++    {
++        $unit = trim($unit);
++
++        if (in_array($unit, ['Psi', 'Bar', 'kg/cm2'], true)) {
++            return match ($unit) {
++                'Psi'    => $base / 0.0689476,
++                'kg/cm2' => $base / 0.980665,
++                default  => $base, // Bar
++            };
++        }
++
++        if (in_array($unit, ['USGPM', 'LPM', 'm3/h'], true)) {
++            return match ($unit) {
++                'USGPM' => $base / 3.78541,
++                'm3/h'  => $base * 60 / 1000,
++                default => $base, // L/min
++            };
++        }
++
++        if (in_array($unit, ['°C', '°F'], true)) {
++            return match ($unit) {
++                '°F'  => $base * 9 / 5 + 32,
++                default => $base, // °C
++            };
++        }
++
++        if (in_array($unit, ['A', '%FLA'], true)) {
++            // Base is Ampere; only A is expressible.
++            return match ($unit) {
++                '%FLA' => null,
++                default => $base, // A
++            };
++        }
++
++        if (in_array($unit, ['um', 'mil'], true)) {
++            return match ($unit) {
++                'mil' => $base / 25.4,
++                default => $base, // um
++            };
++        }
++
++        return null;
++    }
++}
+diff --git a/database/migrations/2026_09_02_100000_create_operating_parameter_correction_logs_table.php b/database/migrations/2026_09_02_100000_create_operating_parameter_correction_logs_table.php
+new file mode 100644
+index 0000000..d6a772d
+--- /dev/null
++++ b/database/migrations/2026_09_02_100000_create_operating_parameter_correction_logs_table.php
+@@ -0,0 +1,36 @@
++<?php
++
++use Illuminate\Database\Migrations\Migration;
++use Illuminate\Database\Schema\Blueprint;
++use Illuminate\Support\Facades\Schema;
++
++return new class extends Migration
++{
++    /**
++     * Audit log for bulk operating-parameter unit corrections.
++     *
++     * Each row is a single, reversible correction run:
++     * who, when, scope, parameter, stored unit, actual unit,
++     * the full before/after snapshot of every affected value.
++     */
++    public function up(): void
++    {
++        Schema::create('operating_parameter_correction_logs', function (Blueprint $table) {
++            $table->id();
++            $table->foreignId('user_id')->nullable();
++            $table->string('scope_description');
++            $table->string('parameter_key');
++            $table->string('stored_unit');
++            $table->string('actual_unit');
++            $table->json('values');
++            $table->unsignedInteger('records_affected');
++            $table->timestamp('reverted_at')->nullable();
++            $table->timestamps();
++        });
++    }
++
++    public function down(): void
++    {
++        Schema::dropIfExists('operating_parameter_correction_logs');
++    }
++};
+diff --git a/resources/views/dashboard/index.blade.php b/resources/views/dashboard/index.blade.php
+index 8bb4202..a52e03a 100644
+--- a/resources/views/dashboard/index.blade.php
++++ b/resources/views/dashboard/index.blade.php
+@@ -138,6 +138,29 @@
+                     })
+                     ->values();
+ 
++                /*
++                |--------------------------------------------------------------------------
++                | HEALTHIEST SESSION (OPTION A)
++                |--------------------------------------------------------------------------
++                |
++                | Session with the LOWEST MAX overall velocity
++                | = the healthiest operating baseline reference.
++                */
++                $healthySession = $history
++                    ->filter(function ($inspection) {
++                        return $inspection['highestOverall'] !== null;
++                    })
++                    ->sortBy(function ($inspection) {
++                        return (float) $inspection['highestOverall'];
++                    })
++                    ->first();
++
++                $healthyHistoryIndex = $healthySession
++                    ? $history->search(
++                        fn ($item) => $item['id'] === $healthySession['id']
++                    )
++                    : null;
++
+                 return [
+                     (string) $equipment->id => [
+                         'name' => $equipment->equipment_name,
+@@ -257,6 +280,10 @@
+                                 })->all(),
+                             ];
+                         })->all(),
++
++                        'healthySession' => $healthySession,
++
++                        'healthyHistoryIndex' => $healthyHistoryIndex,
+                     ],
+                 ];
+             })->all();
+@@ -1032,6 +1059,27 @@ class="relative bg-white w-full max-w-6xl
+                    overflow-hidden"
+         >
+ 
++            {{-- HEALTHIEST BASELINE BANNER --}}
++            <div
++                id="comparisonBaselineBanner"
++                class="hidden px-6 py-3 bg-green-50 border-b border-green-200"
++            >
++                <div class="flex items-center justify-between gap-3">
++                    <p class="text-sm text-green-800">
++                        <span class="font-bold">● HEALTHIEST BASELINE</span>
++                        <span id="comparisonBaselineText" class="ml-1"></span>
++                    </p>
++                    <button
++                        type="button"
++                        onclick="prefillComparisonFromBaseline()"
++                        class="shrink-0 px-3 py-1.5 rounded-lg bg-green-600
++                               text-white text-xs font-semibold hover:bg-green-700"
++                    >
++                        ⇄ Compare with Baseline
++                    </button>
++                </div>
++            </div>
++
+             {{-- HEADER --}}
+             <div
+                 class="px-6 py-5 border-b border-gray-200
+@@ -1505,6 +1553,19 @@ function openComparisonModal() {
+     resetComparisonDateSelector('B');
+ 
+ 
++    const baselineBanner =
++        document.getElementById(
++            'comparisonBaselineBanner'
++        );
++
++
++    if (baselineBanner) {
++
++        baselineBanner.classList.add('hidden');
++
++    }
++
++
+     const result =
+         document.getElementById(
+             'comparisonResult'
+@@ -1706,11 +1767,261 @@ function (session, index) {
+         history.length === 0;
+ 
+ 
++    if (side === 'A') {
++
++        updateComparisonBaselineBanner(
++            equipmentId
++        );
++
++    }
++
++
+     renderComparison();
+ 
+ }
+ 
+ 
++/*
++|--------------------------------------------------------------------------
++| HEALTHIEST BASELINE BANNER
++|--------------------------------------------------------------------------
++|
++| Shows the healthiest session (lowest max overall) of the
++| equipment selected in Measurement A.
++*/
++
++function updateComparisonBaselineBanner(equipmentId) {
++
++    const banner =
++        document.getElementById(
++            'comparisonBaselineBanner'
++        );
++
++    if (!banner) {
++
++        return;
++
++    }
++
++
++    const equipment =
++        equipmentDetailData[String(equipmentId)];
++
++
++    const healthy =
++        equipment?.healthySession;
++
++
++    if (!equipmentId || !healthy) {
++
++        banner.classList.add('hidden');
++
++        return;
++
++    }
++
++
++    const text =
++        document.getElementById(
++            'comparisonBaselineText'
++        );
++
++
++    if (text) {
++
++        const pointLabel =
++            healthy.highestPoint
++                ? healthy.highestPoint +
++                    (healthy.highestDirection
++                        ? ' - ' + healthy.highestDirection
++                        : '')
++                : '-';
++
++        text.textContent =
++            ` · ${healthy.highestOverall} mm/s RMS @ ${pointLabel}` +
++            ` · ${formatDateOnly(healthy.inspectionDate)}`;
++
++    }
++
++
++    banner.classList.remove('hidden');
++
++}
++
++
++/*
++|--------------------------------------------------------------------------
++| PREFILL COMPARISON FROM BASELINE
++|--------------------------------------------------------------------------
++|
++| A = healthiest session (reference)
++| B = latest session
++*/
++
++function prefillComparisonFromBaseline() {
++
++    const equipmentSelectA =
++        document.getElementById(
++            'comparisonEquipmentA'
++        );
++
++
++    const equipmentSelectB =
++        document.getElementById(
++            'comparisonEquipmentB'
++        );
++
++
++    if (
++        !equipmentSelectA ||
++        !equipmentSelectB
++    ) {
++
++        return;
++
++    }
++
++
++    const equipmentId =
++        equipmentSelectA.value;
++
++
++    if (!equipmentId) {
++
++        return;
++
++    }
++
++
++    const equipment =
++        equipmentDetailData[String(equipmentId)];
++
++
++    const healthyIndex =
++        equipment?.healthyHistoryIndex;
++
++
++    if (
++        healthyIndex === null ||
++        healthyIndex === undefined
++    ) {
++
++        return;
++
++    }
++
++
++    const dateSelectA =
++        document.getElementById(
++            'comparisonDateA'
++        );
++
++
++    const dateSelectB =
++        document.getElementById(
++            'comparisonDateB'
++        );
++
++
++    // Same equipment on both sides.
++    equipmentSelectB.value = equipmentId;
++
++
++    // A = healthiest, B = latest (index 0).
++    dateSelectA.value = String(healthyIndex);
++    dateSelectB.value = '0';
++
++
++    renderComparison();
++
++}
++
++
++/*
++|--------------------------------------------------------------------------
++| OPEN COMPARISON FROM BASELINE (EQUIPMENT DETAIL MODAL)
++|--------------------------------------------------------------------------
++|
++| Called from the healthiest session's Operating Parameters
++| card in the equipment detail modal.
++|
++| A = the healthiest session (passed history index)
++| B = latest session
++*/
++
++function openComparisonFromBaseline(healthiestIndex) {
++
++    // Find the equipment id that owns activeEquipmentData.
++    const equipmentId = Object.keys(
++        equipmentDetailData || {}
++    ).find(function (key) {
++        return equipmentDetailData[key] === activeEquipmentData;
++    });
++
++
++    if (!equipmentId) {
++
++        return;
++
++    }
++
++
++    const equipmentSelectA =
++        document.getElementById(
++            'comparisonEquipmentA'
++        );
++
++
++    const equipmentSelectB =
++        document.getElementById(
++            'comparisonEquipmentB'
++        );
++
++
++    if (!equipmentSelectA || !equipmentSelectB) {
++
++        return;
++
++    }
++
++
++    // Close the equipment detail modal, open the comparison.
++    closeEquipmentDetail();
++
++
++    // Populate both equipment selects (required before date selects).
++    equipmentSelectA.value = equipmentId;
++    updateComparisonDates('A');
++
++
++    equipmentSelectB.value = equipmentId;
++    updateComparisonDates('B');
++
++
++    const dateSelectA =
++        document.getElementById(
++            'comparisonDateA'
++        );
++
++
++    const dateSelectB =
++        document.getElementById(
++            'comparisonDateB'
++        );
++
++
++    if (dateSelectA && dateSelectB) {
++
++        dateSelectA.value = String(healthiestIndex);
++        dateSelectB.value = '0';
++
++        renderComparison();
++
++    }
++
++}
++
++
+ /*
+ |--------------------------------------------------------------------------
+ | GET SELECTED SESSION
+@@ -2721,6 +3032,13 @@ class="grid grid-cols-1
+                                 { key: 'bearing_temp_m_in', label: 'Bearing Temp M-In', unit: '°C' },
+                                 { key: 'bearing_temp_p_in', label: 'Bearing Temp P-In', unit: '°C' },
+                                 { key: 'bearing_temp_p_out', label: 'Bearing Temp P-Out', unit: '°C' },
++                                { key: 'current_phase_1', label: 'Current Phase 1 (L1)', unit: 'A' },
++                                { key: 'current_phase_2', label: 'Current Phase 2 (L2)', unit: 'A' },
++                                { key: 'current_phase_3', label: 'Current Phase 3 (L3)', unit: 'A' },
++                                { key: 'bentley_motor_x', label: 'Bentley Motor X', unit: 'µm p-p' },
++                                { key: 'bentley_motor_y', label: 'Bentley Motor Y', unit: 'µm p-p' },
++                                { key: 'bentley_pump_x', label: 'Bentley Pump X', unit: 'µm p-p' },
++                                { key: 'bentley_pump_y', label: 'Bentley Pump Y', unit: 'µm p-p' },
+                             ];
+                             const opA = sessionA.operatingParameters || {};
+                             const opB = sessionB.operatingParameters || {};
+@@ -2729,6 +3047,37 @@ function parseNum(v) {
+                                 const n = Number(String(v).replace(',', '.'));
+                                 return Number.isFinite(n) ? n : null;
+                             }
++                            function currentImbalance(op) {
++                                const ph = [op.current_phase_1, op.current_phase_2, op.current_phase_3].map(parseNum);
++                                if (ph.length !== 3 || ph.some(v => v === null)) return null;
++                                const mean = (ph[0] + ph[1] + ph[2]) / 3;
++                                if (mean === 0) return null;
++                                return Math.max(Math.abs(ph[0] - mean), Math.abs(ph[1] - mean), Math.abs(ph[2] - mean)) / mean * 100;
++                            }
++                            const imbA = currentImbalance(opA);
++                            const imbB = currentImbalance(opB);
++                            let imbText = '-';
++                            let imbDeltaText = '-';
++                            let imbDeltaCls = '';
++                            if (imbA !== null && imbB !== null) {
++                                const imbDelta = imbB - imbA;
++                                imbText = imbA.toFixed(1) + ' %';
++                                imbDeltaText = (imbDelta > 0 ? '+' : '') + imbDelta.toFixed(1) + ' %';
++                                imbDeltaCls = imbDelta > 0 ? 'text-red-600' : (imbDelta < 0 ? 'text-green-600' : 'text-gray-600');
++                            } else if (imbA !== null) {
++                                imbText = imbA.toFixed(1) + ' %';
++                            } else if (imbB !== null) {
++                                imbText = imbB.toFixed(1) + ' %';
++                            }
++                            const imbRow =
++                                '<tr class="hover:bg-gray-50 bg-amber-50/40">' +
++                                '<td class="px-4 py-3 font-semibold text-gray-800">Current Imbalance (auto)</td>' +
++                                '<td class="px-4 py-3 text-right font-semibold text-[#0F2D5C]">' + (imbA !== null ? imbA.toFixed(1) + ' %' : '-') + '</td>' +
++                                '<td class="px-4 py-3 text-right font-semibold text-[#0F2D5C]">' + (imbB !== null ? imbB.toFixed(1) + ' %' : '-') + '</td>' +
++                                '<td class="px-4 py-3 text-right font-semibold ' + imbDeltaCls + '">' + imbDeltaText + '</td>' +
++                                '<td class="px-4 py-3 text-right font-semibold ' + imbDeltaCls + '">-</td>' +
++                                '</tr>';
++
+                             return params.map(function(p) {
+                                 const rawA = opA[p.key];
+                                 const rawB = opB[p.key];
+@@ -2753,7 +3102,7 @@ function parseNum(v) {
+                                     '<td class="px-4 py-3 text-right font-semibold ' + deltaCls + '">' + escapeHtml(deltaText) + '</td>' +
+                                     '<td class="px-4 py-3 text-right font-semibold ' + deltaCls + '">' + escapeHtml(deltaPercentText) + '</td>' +
+                                 '</tr>';
+-                            }).join('');
++                            }).join('') + imbRow;
+                         })()}
+                     </tbody>
+                 </table>
+@@ -3412,6 +3761,9 @@ function renderEquipmentHistory() {
+         return;
+     }
+ 
++    const healthyIndex =
++        activeEquipmentData.healthyHistoryIndex;
++
+     content.innerHTML = activeEquipmentData.history.map((session, index) => `
+         <button
+             type="button"
+@@ -3425,6 +3777,7 @@ class="w-full text-left border border-gray-200 rounded-xl p-4 hover:border-[#0F2
+                             ${escapeHtml(formatDateOnly(session.inspectionDate))}
+                         </span>
+                         ${severityBadge(session.severity)}
++                        ${index === healthyIndex ? `<span class="px-3 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700">● HEALTHIEST BASELINE</span>` : ''}
+                     </div>
+ 
+                     <div class="grid grid-cols-1 sm:grid-cols-3 gap-x-6 gap-y-1 mt-3 text-sm text-gray-500">
+@@ -3503,6 +3856,41 @@ function openInspectionDetail(historyIndex) {
+ 
+         const operatingParameters = session.operatingParameters || {};
+ 
++    const parameterValueNum = (key) => {
++        const value = operatingParameters[key];
++        if (value === null || value === undefined || value === '') return null;
++        const n = Number(String(value).replace(',', '.'));
++        return Number.isFinite(n) ? n : null;
++    };
++
++        const currentImbalanceOp = (() => {
++            const ph = [
++                operatingParameters['current_phase_1'],
++                operatingParameters['current_phase_2'],
++                operatingParameters['current_phase_3'],
++            ].map(parameterValueNum);
++
++            if (ph.some(v => v === null)) return null;
++
++            const mean = (ph[0] + ph[1] + ph[2]) / 3;
++
++            if (mean === 0) return null;
++
++            return Math.max(
++                Math.abs(ph[0] - mean),
++                Math.abs(ph[1] - mean),
++                Math.abs(ph[2] - mean)
++            ) / mean * 100;
++        })();
++
++        const imbalanceCls = currentImbalanceOp === null
++            ? 'text-gray-400'
++            : (currentImbalanceOp < 5
++                ? 'text-green-600'
++                : (currentImbalanceOp < 10
++                    ? 'text-yellow-600'
++                    : 'text-red-600'));
++
+     const parameterValue = (key, unit) => {
+         const value = operatingParameters[key];
+ 
+@@ -3564,6 +3952,21 @@ class="inline-flex items-center justify-center
+                         : ''
+                 }
+ 
++                ${index === healthyIndex ? `
++                <button
++                    type="button"
++                    onclick="openComparisonFromBaseline(${index})"
++                    class="inline-flex items-center justify-center
++                           px-4 py-2 rounded-lg
++                           bg-green-600 text-white
++                           hover:bg-green-700
++                           text-sm font-semibold"
++                    title="Session ini = healthiest baseline. Bandingkan dengan session terbaru."
++                >
++                    ⇄ Compare with Baseline
++                </button>
++                ` : ''}
++
+             </div>
+ 
+             <div class="grid grid-cols-1 sm:grid-cols-2
+@@ -3641,6 +4044,80 @@ class="inline-flex items-center justify-center
+                     </p>
+                 </div>
+ 
++                <div>
++                    <p class="text-sm text-gray-500">
++                        Current Phase 1 (L1)
++                    </p>
++                    <p class="mt-1">
++                        ${parameterValue('current_phase_1', 'A')}
++                    </p>
++                </div>
++
++                <div>
++                    <p class="text-sm text-gray-500">
++                        Current Phase 2 (L2)
++                    </p>
++                    <p class="mt-1">
++                        ${parameterValue('current_phase_2', 'A')}
++                    </p>
++                </div>
++
++                <div>
++                    <p class="text-sm text-gray-500">
++                        Current Phase 3 (L3)
++                    </p>
++                    <p class="mt-1">
++                        ${parameterValue('current_phase_3', 'A')}
++                    </p>
++                </div>
++
++                <div>
++                    <p class="text-sm text-gray-500">
++                        Current Imbalance
++                    </p>
++                    <p class="mt-1">
++                        ${currentImbalanceOp !== null
++                            ? `<span class="text-xl font-semibold ${imbalanceCls}">${currentImbalanceOp.toFixed(1)}</span><span class="text-sm font-normal text-gray-500"> %</span>`
++                            : `<span class="text-gray-400">-</span><span class="text-sm font-normal text-gray-400"> %</span>`}
++                    </p>
++                </div>
++
++                <div>
++                    <p class="text-sm text-gray-500">
++                        Bentley Motor X
++                    </p>
++                    <p class="mt-1">
++                        ${parameterValue('bentley_motor_x', 'µm p-p')}
++                    </p>
++                </div>
++
++                <div>
++                    <p class="text-sm text-gray-500">
++                        Bentley Motor Y
++                    </p>
++                    <p class="mt-1">
++                        ${parameterValue('bentley_motor_y', 'µm p-p')}
++                    </p>
++                </div>
++
++                <div>
++                    <p class="text-sm text-gray-500">
++                        Bentley Pump X
++                    </p>
++                    <p class="mt-1">
++                        ${parameterValue('bentley_pump_x', 'µm p-p')}
++                    </p>
++                </div>
++
++                <div>
++                    <p class="text-sm text-gray-500">
++                        Bentley Pump Y
++                    </p>
++                    <p class="mt-1">
++                        ${parameterValue('bentley_pump_y', 'µm p-p')}
++                    </p>
++                </div>
++
+             </div>
+ 
+         </div>
+diff --git a/resources/views/equipment-inspection/operating-parameters.blade.php b/resources/views/equipment-inspection/operating-parameters.blade.php
+index c9440d4..dc61ee2 100644
+--- a/resources/views/equipment-inspection/operating-parameters.blade.php
++++ b/resources/views/equipment-inspection/operating-parameters.blade.php
+@@ -369,7 +369,7 @@ class="w-full border border-gray-300
+ 
+ 
+             {{-- FLOW --}}
+-            <div class="mb-8">
++            <div class="mb-6">
+ 
+                 <label
+                     for="flow_rate"
+@@ -406,6 +406,295 @@ class="w-full border border-gray-300
+             </div>
+ 
+ 
++            {{-- LOAD CURRENT --}}
++            <div class="mb-6">
++
++                <h2 class="text-lg font-bold text-[#0F2D5C] mb-1">
++                    Motor Load Current
++                </h2>
++
++                <p class="text-sm text-gray-500 mb-4">
++                    Arus motor 3 phase (clamp per fase).
++                    Imbalance dihitung otomatis.
++                </p>
++
++                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
++
++                    <div>
++
++                        <label
++                            for="current_phase_1"
++                            class="block font-semibold text-gray-700 mb-2"
++                        >
++                            Current Phase 1 (L1)
++                        </label>
++
++                        <div class="flex gap-3">
++
++                            <input
++                                type="number"
++                                step="0.01"
++                                min="0"
++                                id="current_phase_1"
++                                name="current_phase_1"
++                                value="{{ old(
++                                    'current_phase_1',
++                                    $parameters['current_phase_1'] ?? ''
++                                ) }}"
++                                class="w-full border border-gray-300
++                                       rounded-xl px-4 py-3"
++                            >
++
++                            <span class="flex items-center
++                                         px-4 rounded-xl bg-gray-100
++                                         text-gray-600 font-semibold">
++                                A
++                            </span>
++
++                        </div>
++
++                    </div>
++
++
++                    <div>
++
++                        <label
++                            for="current_phase_2"
++                            class="block font-semibold text-gray-700 mb-2"
++                        >
++                            Current Phase 2 (L2)
++                        </label>
++
++                        <div class="flex gap-3">
++
++                            <input
++                                type="number"
++                                step="0.01"
++                                min="0"
++                                id="current_phase_2"
++                                name="current_phase_2"
++                                value="{{ old(
++                                    'current_phase_2',
++                                    $parameters['current_phase_2'] ?? ''
++                                ) }}"
++                                class="w-full border border-gray-300
++                                       rounded-xl px-4 py-3"
++                            >
++
++                            <span class="flex items-center
++                                         px-4 rounded-xl bg-gray-100
++                                         text-gray-600 font-semibold">
++                                A
++                            </span>
++
++                        </div>
++
++                    </div>
++
++
++                    <div>
++
++                        <label
++                            for="current_phase_3"
++                            class="block font-semibold text-gray-700 mb-2"
++                        >
++                            Current Phase 3 (L3)
++                        </label>
++
++                        <div class="flex gap-3">
++
++                            <input
++                                type="number"
++                                step="0.01"
++                                min="0"
++                                id="current_phase_3"
++                                name="current_phase_3"
++                                value="{{ old(
++                                    'current_phase_3',
++                                    $parameters['current_phase_3'] ?? ''
++                                ) }}"
++                                class="w-full border border-gray-300
++                                       rounded-xl px-4 py-3"
++                            >
++
++                            <span class="flex items-center
++                                         px-4 rounded-xl bg-gray-100
++                                         text-gray-600 font-semibold">
++                                A
++                            </span>
++
++                        </div>
++
++                    </div>
++
++                </div>
++
++            </div>
++
++
++            {{-- BENTLEY PROXIMITY (SHAFT DISPLACEMENT) --}}
++            <div class="mb-8">
++
++                <h2 class="text-lg font-bold text-[#0F2D5C] mb-1">
++                    Bentley Shaft Displacement (Proximity)
++                </h2>
++
++                <p class="text-sm text-gray-500 mb-4">
++                    Pembacaan proximitors 3300 —
++                    <strong>µm peak-to-peak</strong> radial.
++                    (1 mil = 25.4 µm)
++                </p>
++
++                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
++
++                    <div>
++
++                        <label
++                            for="bentley_motor_x"
++                            class="block font-semibold text-gray-700 mb-2"
++                        >
++                            Bentley Motor X (Radial)
++                        </label>
++
++                        <div class="flex gap-3">
++
++                            <input
++                                type="number"
++                                step="0.01"
++                                min="0"
++                                id="bentley_motor_x"
++                                name="bentley_motor_x"
++                                value="{{ old(
++                                    'bentley_motor_x',
++                                    $parameters['bentley_motor_x'] ?? ''
++                                ) }}"
++                                class="w-full border border-gray-300
++                                       rounded-xl px-4 py-3"
++                            >
++
++                            <span class="flex items-center
++                                         px-4 rounded-xl bg-gray-100
++                                         text-gray-600 font-semibold">
++                                µm p-p
++                            </span>
++
++                        </div>
++
++                    </div>
++
++
++                    <div>
++
++                        <label
++                            for="bentley_motor_y"
++                            class="block font-semibold text-gray-700 mb-2"
++                        >
++                            Bentley Motor Y (Radial)
++                        </label>
++
++                        <div class="flex gap-3">
++
++                            <input
++                                type="number"
++                                step="0.01"
++                                min="0"
++                                id="bentley_motor_y"
++                                name="bentley_motor_y"
++                                value="{{ old(
++                                    'bentley_motor_y',
++                                    $parameters['bentley_motor_y'] ?? ''
++                                ) }}"
++                                class="w-full border border-gray-300
++                                       rounded-xl px-4 py-3"
++                            >
++
++                            <span class="flex items-center
++                                         px-4 rounded-xl bg-gray-100
++                                         text-gray-600 font-semibold">
++                                µm p-p
++                            </span>
++
++                        </div>
++
++                    </div>
++
++
++                    <div>
++
++                        <label
++                            for="bentley_pump_x"
++                            class="block font-semibold text-gray-700 mb-2"
++                        >
++                            Bentley Pump X (Radial)
++                        </label>
++
++                        <div class="flex gap-3">
++
++                            <input
++                                type="number"
++                                step="0.01"
++                                min="0"
++                                id="bentley_pump_x"
++                                name="bentley_pump_x"
++                                value="{{ old(
++                                    'bentley_pump_x',
++                                    $parameters['bentley_pump_x'] ?? ''
++                                ) }}"
++                                class="w-full border border-gray-300
++                                       rounded-xl px-4 py-3"
++                            >
++
++                            <span class="flex items-center
++                                         px-4 rounded-xl bg-gray-100
++                                         text-gray-600 font-semibold">
++                                µm p-p
++                            </span>
++
++                        </div>
++
++                    </div>
++
++
++                    <div>
++
++                        <label
++                            for="bentley_pump_y"
++                            class="block font-semibold text-gray-700 mb-2"
++                        >
++                            Bentley Pump Y (Radial)
++                        </label>
++
++                        <div class="flex gap-3">
++
++                            <input
++                                type="number"
++                                step="0.01"
++                                min="0"
++                                id="bentley_pump_y"
++                                name="bentley_pump_y"
++                                value="{{ old(
++                                    'bentley_pump_y',
++                                    $parameters['bentley_pump_y'] ?? ''
++                                ) }}"
++                                class="w-full border border-gray-300
++                                       rounded-xl px-4 py-3"
++                            >
++
++                            <span class="flex items-center
++                                         px-4 rounded-xl bg-gray-100
++                                         text-gray-600 font-semibold">
++                                µm p-p
++                            </span>
++
++                        </div>
++
++                    </div>
++
++                </div>
++
++            </div>
++
++
+             {{-- BUTTON --}}
+             <div class="flex gap-3">
+ 
+@@ -438,4 +727,4 @@ class="bg-[#0F2D5C] hover:bg-blue-900
+ 
+ </div>
+ 
+-@endsection
+\ No newline at end of file
++@endsection
+diff --git a/resources/views/equipment-inspection/show.blade.php b/resources/views/equipment-inspection/show.blade.php
+index 88f8cad..a32d79f 100644
+--- a/resources/views/equipment-inspection/show.blade.php
++++ b/resources/views/equipment-inspection/show.blade.php
+@@ -346,6 +346,204 @@ class="bg-white border border-[#0F2D5C]
+ 
+             </div>
+ 
++
++            @php
++                /*
++                | Current imbalance:
++                | max deviation from the 3-phase mean, in %.
++                | Only computed when all three phases are present.
++                */
++                $phaseCurrents = collect([
++                    $operatingParameters['current_phase_1'] ?? null,
++                    $operatingParameters['current_phase_2'] ?? null,
++                    $operatingParameters['current_phase_3'] ?? null,
++                ])->filter(function ($value) {
++                    return $value !== null && $value !== '';
++                })->map(fn ($value) => (float) $value);
++
++                $currentImbalance = null;
++
++                if ($phaseCurrents->count() === 3) {
++                    $phaseMean = $phaseCurrents->avg();
++
++                    if ($phaseMean > 0) {
++                        $currentImbalance = $phaseCurrents
++                            ->map(fn ($value) => abs($value - $phaseMean))
++                            ->max() / $phaseMean * 100;
++                    }
++                }
++
++                $imbalanceClass = 'text-gray-400';
++
++                if ($currentImbalance !== null) {
++                    $imbalanceClass = $currentImbalance < 5
++                        ? 'text-green-600'
++                        : ($currentImbalance < 10
++                            ? 'text-yellow-600'
++                            : 'text-red-600');
++                }
++            @endphp
++
++
++            {{-- CURRENT PHASE 1 --}}
++            <div>
++
++                <p class="text-gray-500">
++                    Current Phase 1 (L1)
++                </p>
++
++                <p class="text-xl font-semibold">
++
++                    {{ $operatingParameters['current_phase_1'] ?? '-' }}
++
++                    <span class="text-sm font-normal text-gray-500">
++                        A
++                    </span>
++
++                </p>
++
++            </div>
++
++
++            {{-- CURRENT PHASE 2 --}}
++            <div>
++
++                <p class="text-gray-500">
++                    Current Phase 2 (L2)
++                </p>
++
++                <p class="text-xl font-semibold">
++
++                    {{ $operatingParameters['current_phase_2'] ?? '-' }}
++
++                    <span class="text-sm font-normal text-gray-500">
++                        A
++                    </span>
++
++                </p>
++
++            </div>
++
++
++            {{-- CURRENT PHASE 3 --}}
++            <div>
++
++                <p class="text-gray-500">
++                    Current Phase 3 (L3)
++                </p>
++
++                <p class="text-xl font-semibold">
++
++                    {{ $operatingParameters['current_phase_3'] ?? '-' }}
++
++                    <span class="text-sm font-normal text-gray-500">
++                        A
++                    </span>
++
++                </p>
++
++            </div>
++
++
++            {{-- CURRENT IMBALANCE --}}
++            <div>
++
++                <p class="text-gray-500">
++                    Current Imbalance
++                </p>
++
++                <p class="text-xl font-semibold {{ $imbalanceClass }}">
++
++                    {{ $currentImbalance !== null ? number_format($currentImbalance, 1) : '-' }}
++
++                    <span class="text-sm font-normal text-gray-500">
++                        %
++                    </span>
++
++                </p>
++
++            </div>
++
++
++            {{-- BENTLEY MOTOR X --}}
++            <div>
++
++                <p class="text-gray-500">
++                    Bentley Motor X
++                </p>
++
++                <p class="text-xl font-semibold">
++
++                    {{ $operatingParameters['bentley_motor_x'] ?? '-' }}
++
++                    <span class="text-sm font-normal text-gray-500">
++                        µm p-p
++                    </span>
++
++                </p>
++
++            </div>
++
++
++            {{-- BENTLEY MOTOR Y --}}
++            <div>
++
++                <p class="text-gray-500">
++                    Bentley Motor Y
++                </p>
++
++                <p class="text-xl font-semibold">
++
++                    {{ $operatingParameters['bentley_motor_y'] ?? '-' }}
++
++                    <span class="text-sm font-normal text-gray-500">
++                        µm p-p
++                    </span>
++
++                </p>
++
++            </div>
++
++
++            {{-- BENTLEY PUMP X --}}
++            <div>
++
++                <p class="text-gray-500">
++                    Bentley Pump X
++                </p>
++
++                <p class="text-xl font-semibold">
++
++                    {{ $operatingParameters['bentley_pump_x'] ?? '-' }}
++
++                    <span class="text-sm font-normal text-gray-500">
++                        µm p-p
++                    </span>
++
++                </p>
++
++            </div>
++
++
++            {{-- BENTLEY PUMP Y --}}
++            <div>
++
++                <p class="text-gray-500">
++                    Bentley Pump Y
++                </p>
++
++                <p class="text-xl font-semibold">
++
++                    {{ $operatingParameters['bentley_pump_y'] ?? '-' }}
++
++                    <span class="text-sm font-normal text-gray-500">
++                        µm p-p
++                    </span>
++
++                </p>
++
++            </div>
++
+         </div>
+ 
+     </div>
+diff --git a/resources/views/layouts/app.blade.php b/resources/views/layouts/app.blade.php
+index 9bf19fb..7737683 100644
+--- a/resources/views/layouts/app.blade.php
++++ b/resources/views/layouts/app.blade.php
+@@ -232,6 +232,27 @@ class="cbm-nav-item flex items-center gap-3
+                 </span>
+             </a>
+ 
++
++            {{-- UNIT CORRECTION (ADMIN ONLY) --}}
++            @if(auth()->user()?->isAdmin())
++
++                <a
++                    href="{{ route('unit-correction.index') }}"
++                    class="cbm-nav-item flex items-center gap-3
++                           rounded-xl px-2.5 py-3
++                           {{ request()->routeIs('unit-correction.*')
++                                ? 'bg-white text-[#0F2D5C] shadow-sm'
++                                : 'text-blue-100 hover:bg-white/10' }}"
++                    title="Unit Correction"
++                >
++                    <span class="w-9 text-center text-lg shrink-0">🔧</span>
++                    <span class="cbm-sidebar-label text-sm font-semibold">
++                        Unit Correction
++                    </span>
++                </a>
++
++            @endif
++
+         </nav>
+ 
+ 
+diff --git a/resources/views/unit-correction/index.blade.php b/resources/views/unit-correction/index.blade.php
+new file mode 100644
+index 0000000..44a7c09
+--- /dev/null
++++ b/resources/views/unit-correction/index.blade.php
+@@ -0,0 +1,634 @@
++@extends('layouts.app')
++
++@section('title', 'Unit Correction')
++
++@section('content')
++
++<div class="max-w-5xl mx-auto px-6 py-10">
++
++    {{-- HEADER --}}
++    <div class="flex items-center justify-between mb-8">
++
++        <div>
++            <h1 class="text-3xl font-bold text-[#0F2D5C]">
++                Unit Correction
++            </h1>
++
++            <p class="text-gray-500 mt-1">
++                Koreksi massal unit Operating Parameters
++                (mis. data tersimpan °C padahal sebenarnya °F).
++                <strong>Preview dulu, baru konfirmasi.</strong>
++            </p>
++        </div>
++
++        <a
++            href="{{ route('dashboard') }}"
++            class="bg-gray-500 hover:bg-gray-600
++                   text-white px-5 py-3
++                   rounded-xl font-semibold"
++        >
++            ← Back
++        </a>
++
++    </div>
++
++
++    {{-- FLASH --}}
++    @if(session('success'))
++        <div class="bg-green-50 border border-green-200
++                    text-green-700 px-6 py-4
++                    rounded-xl mb-6">
++            {{ session('success') }}
++        </div>
++    @endif
++
++    @if(session('error'))
++        <div class="bg-red-50 border border-red-200
++                    text-red-700 px-6 py-4
++                    rounded-xl mb-6">
++            {{ session('error') }}
++        </div>
++    @endif
++
++
++    {{-- FORM --}}
++    <div class="bg-white rounded-2xl shadow-sm p-8">
++
++        <form
++            method="POST"
++            id="correctionForm"
++            action="{{ route('unit-correction.apply') }}"
++        >
++
++            @csrf
++
++            {{-- SCOPE --}}
++            <h2 class="text-lg font-bold text-[#0F2D5C] mb-4">
++                1 · Scope Data
++            </h2>
++
++            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
++
++                <div>
++                    <label class="block font-semibold text-gray-700 mb-2">
++                        Area
++                    </label>
++
++                    <select
++                        id="correctionArea"
++                        name="area"
++                        class="w-full border border-gray-300
++                               rounded-xl px-4 py-3 bg-white"
++                        onchange="onAreaChange()"
++                    >
++                        <option value="">Semua area</option>
++
++                        @foreach($areas as $area)
++                            <option value="{{ $area }}">{{ $area }}</option>
++                        @endforeach
++                    </select>
++                </div>
++
++                <div>
++                    <label class="block font-semibold text-gray-700 mb-2">
++                        Equipment
++                    </label>
++
++                    <select
++                        id="correctionEquipment"
++                        name="equipment_id"
++                        class="w-full border border-gray-300
++                               rounded-xl px-4 py-3 bg-white"
++                    >
++                        <option value="">Semua equipment</option>
++
++                        @foreach($equipments as $equipment)
++                            <option
++                                value="{{ $equipment->id }}"
++                                data-area="{{ $equipment->area }}"
++                            >
++                                {{ $equipment->equipment_name }}
++                                {{ $equipment->area ? ' · ' . $equipment->area : '' }}
++                            </option>
++                        @endforeach
++                    </select>
++                </div>
++
++            </div>
++
++            <div class="mb-8">
++
++                <label class="block font-semibold text-gray-700 mb-3">
++                    Inspection Date
++                </label>
++
++                <div class="flex flex-wrap gap-4 mb-3">
++
++                    <label class="flex items-center gap-2 text-sm">
++                        <input
++                            type="radio"
++                            name="date_mode"
++                            value="all"
++                            checked
++                            class="correction-date-radio"
++                        >
++                        Semua tanggal
++                    </label>
++
++                    <label class="flex items-center gap-2 text-sm">
++                        <input
++                            type="radio"
++                            name="date_mode"
++                            value="single"
++                            class="correction-date-radio"
++                        >
++                        Tanggal tunggal
++                    </label>
++
++                    <label class="flex items-center gap-2 text-sm">
++                        <input
++                            type="radio"
++                            name="date_mode"
++                            value="range"
++                            class="correction-date-radio"
++                        >
++                        Rentang tanggal
++                    </label>
++
++                </div>
++
++                <div
++                    id="correctionDateSingle"
++                    class="hidden"
++                >
++                    <div class="flex gap-3">
++                        <input
++                            type="date"
++                            id="correctionDateFrom"
++                            name="date_from"
++                            class="border border-gray-300
++                                   rounded-xl px-4 py-3"
++                        >
++                    </div>
++                </div>
++
++                <div id="correctionDateRange" class="hidden">
++                    <div class="flex flex-wrap items-center gap-3">
++                        <input
++                            type="date"
++                            id="correctionDateRangeFrom"
++                            name="date_from"
++                            class="border border-gray-300
++                                   rounded-xl px-4 py-3"
++                        >
++                        <span class="text-gray-400">s/d</span>
++                        <input
++                            type="date"
++                            id="correctionDateRangeTo"
++                            name="date_to"
++                            class="border border-gray-300
++                                   rounded-xl px-4 py-3"
++                        >
++                    </div>
++                </div>
++
++            </div>
++
++
++            {{-- PARAMETER + UNITS --}}
++            <h2 class="text-lg font-bold text-[#0F2D5C] mb-4">
++                2 · Parameter & Unit
++            </h2>
++
++            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-3">
++
++                <div>
++                    <label class="block font-semibold text-gray-700 mb-2">
++                        Parameter
++                    </label>
++
++                    <select
++                        id="correctionParameter"
++                        name="parameter_key"
++                        class="w-full border border-gray-300
++                               rounded-xl px-4 py-3 bg-white"
++                        onchange="updateUnitOptions()"
++                    >
++                        @foreach($parameterOptions as $option)
++                            <option
++                                value="{{ $option['key'] }}"
++                                data-units='@json($option['units'])'
++                            >
++                                {{ $option['label'] }}
++                            </option>
++                        @endforeach
++                    </select>
++                </div>
++
++                <div>
++                    <label class="block font-semibold text-gray-700 mb-2">
++                        Unit di Sistem (tersimpan sebagai)
++                    </label>
++
++                    <select
++                        id="correctionStoredUnit"
++                        name="stored_unit"
++                        class="w-full border border-gray-300
++                               rounded-xl px-4 py-3 bg-white"
++                    >
++                    </select>
++                </div>
++
++                <div>
++                    <label class="block font-semibold text-gray-700 mb-2">
++                        Unit Sebenarnya (koreksi ke)
++                    </label>
++
++                    <select
++                        id="correctionActualUnit"
++                        name="actual_unit"
++                        class="w-full border border-gray-300
++                               rounded-xl px-4 py-3 bg-white"
++                    >
++                    </select>
++                </div>
++
++            </div>
++
++            <p class="text-xs text-gray-400 mb-8">
++                Arah konversi: nilai yang TERSIMPAN sebagai
++                <em>Unit di Sistem</em>, diperbaiki agar
++                TERSIMPAN sebagai <em>Unit Sebenarnya</em>.
++                Contoh: “°C → °F” = angka yang tersimpan
++                (padahal °F) dikonversi menjadi °C yang benar
++                dan ditimpa ke database.
++            </p>
++
++
++            {{-- PREVIEW --}}
++            <div class="mb-8">
++
++                <button
++                    type="button"
++                    onclick="runPreview()"
++                    id="previewButton"
++                    class="bg-white border border-[#0F2D5C]
++                           text-[#0F2D5C] hover:bg-blue-50
++                           px-6 py-3 rounded-xl font-semibold"
++                >
++                    🔍 Preview Perubahan
++                </button>
++
++                <div id="previewResult" class="mt-5"></div>
++
++            </div>
++
++
++            {{-- APPLY --}}
++            <div class="flex gap-3 items-start">
++
++                <button
++                    type="submit"
++                    id="applyButton"
++                    class="bg-red-600 hover:bg-red-700
++                           text-white px-6 py-3
++                           rounded-xl font-semibold"
++                    onclick="return confirmApply()"
++                >
++                    ⚠️ Apply Correction
++                </button>
++
++                <p class="text-xs text-gray-400 mt-1">
++                    Apply hanya aktif setelah preview sukses.
++                    Setiap aksi tercatat di audit log (bisa di-undo).
++                </p>
++
++            </div>
++
++        </form>
++
++    </div>
++
++
++    {{-- HISTORY / AUDIT LOG --}}
++    <div class="bg-white rounded-2xl shadow-sm p-8 mt-8">
++
++        <h2 class="text-lg font-bold text-[#0F2D5C] mb-4">
++            3 · Audit Log
++        </h2>
++
++        @if($logs->count())
++
++            <div class="overflow-x-auto border border-gray-200 rounded-xl">
++                <table class="w-full text-sm">
++                    <thead class="bg-gray-50">
++                        <tr>
++                            <th class="px-4 py-3 text-left font-semibold text-gray-600">Waktu</th>
++                            <th class="px-4 py-3 text-left font-semibold text-gray-600">Parameter</th>
++                            <th class="px-4 py-3 text-left font-semibold text-gray-600">Konversi</th>
++                            <th class="px-4 py-3 text-left font-semibold text-gray-600">Scope</th>
++                            <th class="px-4 py-3 text-right font-semibold text-gray-600">Record</th>
++                            <th class="px-4 py-3 text-center font-semibold text-gray-600">Status</th>
++                            <th class="px-4 py-3"></th>
++                        </tr>
++                    </thead>
++                    <tbody class="divide-y divide-gray-100">
++                        @foreach($logs as $log)
++                            <tr class="hover:bg-gray-50">
++                                <td class="px-4 py-3 whitespace-nowrap text-gray-600">
++                                    {{ $log->created_at->format('d M Y H:i') }}
++                                </td>
++                                <td class="px-4 py-3 text-gray-800">
++                                    {{ $log->parameter_key }}
++                                </td>
++                                <td class="px-4 py-3 text-gray-600 whitespace-nowrap">
++                                    {{ $log->stored_unit }} → {{ $log->actual_unit }}
++                                </td>
++                                <td class="px-4 py-3 text-gray-600">
++                                    {{ $log->scope_description }}
++                                </td>
++                                <td class="px-4 py-3 text-right font-semibold text-[#0F2D5C]">
++                                    {{ $log->records_affected }}
++                                </td>
++                                <td class="px-4 py-3 text-center">
++                                    @if($log->reverted_at)
++                                        <span class="px-3 py-1 rounded-full text-xs font-semibold bg-gray-100 text-gray-600">
++                                            Undone
++                                        </span>
++                                    @else
++                                        <span class="px-3 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-700">
++                                            Active
++                                        </span>
++                                    @endif
++                                </td>
++                                <td class="px-4 py-3 text-right">
++                                    @if(!$log->reverted_at)
++                                        <form
++                                            method="POST"
++                                            action="{{ route('unit-correction.undo', $log->id) }}"
++                                            onsubmit="return confirm('Undo correction ini? Nilai akan dikembalikan ke sebelum konversi.');"
++                                        >
++                                            @csrf
++                                            <button
++                                                type="submit"
++                                                class="text-xs font-semibold text-red-600 hover:underline"
++                                            >
++                                                Undo
++                                            </button>
++                                        </form>
++                                    @endif
++                                </td>
++                            </tr>
++                        @endforeach
++                    </tbody>
++                </table>
++            </div>
++
++        @else
++
++            <p class="text-gray-400 text-sm">
++                Belum ada koreksi unit yang tercatat.
++            </p>
++
++        @endif
++
++    </div>
++
++</div>
++
++
++<script>
++    let previewState = null;
++
++    function onAreaChange() {
++        // When an area is selected, filter the equipment options visually
++        // (server-side the equipment_id filter takes precedence anyway).
++        const area = document.getElementById('correctionArea').value;
++        const equipmentSelect = document.getElementById('correctionEquipment');
++
++        Array.from(equipmentSelect.options).forEach(function (option) {
++            if (option.value === '') {
++                option.disabled = false;
++                option.hidden = false;
++                return;
++            }
++            const optionArea = option.dataset.area || '';
++            const match = !area || optionArea === area;
++            option.hidden = !match;
++            option.disabled = !match && option.value === equipmentSelect.value;
++        });
++
++        if (area && equipmentSelect.value !== '') {
++            const selected = equipmentSelect.options[equipmentSelect.selectedIndex];
++            if (selected && (selected.dataset.area || '') !== area) {
++                equipmentSelect.value = '';
++            }
++        }
++    }
++
++    function currentUnits() {
++        const paramSelect = document.getElementById('correctionParameter');
++        const option = paramSelect.options[paramSelect.selectedIndex];
++        try {
++            return JSON.parse(option.dataset.units || '[]');
++        } catch (e) {
++            return [];
++        }
++    }
++
++    function fillUnitSelect(selectId, units, placeholder) {
++        const select = document.getElementById(selectId);
++        select.innerHTML = '';
++
++        units.forEach(function (unit, index) {
++            const option = document.createElement('option');
++            option.value = unit;
++            option.textContent = unit;
++            select.appendChild(option);
++        });
++
++        // Stored defaults to the first (canonical) unit.
++        select.selectedIndex = 0;
++    }
++
++    function updateUnitOptions() {
++        const units = currentUnits();
++        fillUnitSelect('correctionStoredUnit', units);
++        fillUnitSelect('correctionActualUnit', units);
++
++        // Default: stored = first unit, actual = second if it exists.
++        if (units.length > 1) {
++            document.getElementById('correctionActualUnit').selectedIndex = 1;
++        }
++
++        previewState = null;
++        document.getElementById('previewResult').innerHTML = '';
++        document.getElementById('applyButton').disabled = true;
++    }
++
++    function readForm() {
++        const form = document.getElementById('correctionForm');
++        const data = new FormData(form);
++
++        // Only include date fields when their mode is active.
++        const mode = (form.querySelector('input[name="date_mode"]:checked') || {}).value || 'all';
++
++        return {
++            area: form.elements['area'].value,
++            equipment_id: form.elements['equipment_id'].value,
++            parameter_key: form.elements['parameter_key'].value,
++            stored_unit: form.elements['stored_unit'].value,
++            actual_unit: form.elements['actual_unit'].value,
++            date_mode: mode,
++            date_from: (mode === 'range'
++                ? document.getElementById('correctionDateRangeFrom').value
++                : document.getElementById('correctionDateFrom').value) || '',
++            date_to: (mode === 'range'
++                ? document.getElementById('correctionDateRangeTo').value
++                : '') || '',
++        };
++    }
++
++    async function runPreview() {
++        const payload = readForm();
++        const button = document.getElementById('previewButton');
++        const result = document.getElementById('previewResult');
++
++        if (payload.stored_unit === payload.actual_unit) {
++            result.innerHTML =
++                '<div class="bg-yellow-50 border border-yellow-200 text-yellow-700 rounded-xl p-4 text-sm">' +
++                'Unit "tersimpan" dan "sebenarnya" sama — tidak ada konversi.' +
++                '</div>';
++            previewState = null;
++            document.getElementById('applyButton').disabled = true;
++            return;
++        }
++
++        button.disabled = true;
++        button.textContent = '⏳ Menghitung…';
++
++        try {
++            const response = await fetch('{{ route('unit-correction.preview') }}', {
++                method: 'POST',
++                headers: {
++                    'Content-Type': 'application/json',
++                    'Accept': 'application/json',
++                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
++                },
++                body: JSON.stringify(payload),
++            });
++
++            const data = await response.json();
++
++            if (!response.ok) {
++                const message = (data.message || 'Preview gagal.');
++                result.innerHTML =
++                    '<div class="bg-red-50 border border-red-200 text-red-700 rounded-xl p-4 text-sm">' + message + '</div>';
++                previewState = null;
++                document.getElementById('applyButton').disabled = true;
++                return;
++            }
++
++            previewState = data;
++
++            if (data.affected === 0) {
++                result.innerHTML =
++                    '<div class="bg-gray-50 border border-gray-200 text-gray-600 rounded-xl p-4 text-sm">' +
++                    'Tidak ada record dengan nilai parameter ini di scope yang dipilih.' +
++                    '</div>';
++                document.getElementById('applyButton').disabled = true;
++                return;
++            }
++
++            let rows = data.rows.map(function (row) {
++                return (
++                    '<tr class="border-b border-gray-100">' +
++                    '<td class="px-4 py-2 text-gray-700">' + row.equipment_name + '</td>' +
++                    '<td class="px-4 py-2 text-gray-700">' + (row.date || '-') + '</td>' +
++                    '<td class="px-4 py-2 text-right font-semibold text-[#0F2D5C]">' + row.before + '</td>' +
++                    '<td class="px-4 py-2 text-right font-semibold text-green-700">' + row.after + ' ' + data.actual_unit + '</td>' +
++                    '</tr>'
++                );
++            }).join('');
++
++            result.innerHTML =
++                '<div class="border border-green-200 rounded-xl overflow-hidden">' +
++                '<div class="bg-green-50 px-4 py-3 text-sm text-green-800 font-semibold">' +
++                '✅ ' + data.affected + ' record akan diubah · ' + data.scope_description +
++                '</div>' +
++                '<div class="overflow-x-auto max-h-80">' +
++                '<table class="w-full text-sm">' +
++                '<thead class="bg-gray-50">' +
++                '<tr>' +
++                '<th class="px-4 py-2 text-left font-semibold text-gray-600">Equipment</th>' +
++                '<th class="px-4 py-2 text-left font-semibold text-gray-600">Tanggal</th>' +
++                '<th class="px-4 py-2 text-right font-semibold text-gray-600">Sekarang</th>' +
++                '<th class="px-4 py-2 text-right font-semibold text-gray-600">Menjadi</th>' +
++                '</tr>' +
++                '</thead>' +
++                '<tbody>' + rows + '</tbody>' +
++                '</table>' +
++                '</div>' +
++                '</div>';
++
++            document.getElementById('applyButton').disabled = false;
++
++        } catch (error) {
++            result.innerHTML =
++                '<div class="bg-red-50 border border-red-200 text-red-700 rounded-xl p-4 text-sm">' +
++                'Error: ' + error.message +
++                '</div>';
++            previewState = null;
++            document.getElementById('applyButton').disabled = true;
++        } finally {
++            button.disabled = false;
++            button.textContent = '🔍 Preview Perubahan';
++        }
++    }
++
++    function confirmApply() {
++        if (!previewState || previewState.affected === 0) {
++            alert('Jalankan Preview terlebih dahulu sebelum Apply.');
++            return false;
++        }
++        return confirm(
++            'KONFIRMASI: ' + previewState.affected +
++            ' record akan diubah permanen.\n\n' +
++            previewState.scope_description + '\n' +
++            'Parameter: ' + previewState.parameter_label + '\n' +
++            'Konversi: ' + previewState.stored_unit + ' → ' + previewState.actual_unit +
++            '\n\nAksi ini tercatat di audit log dan bisa di-undo. Lanjutkan?'
++        );
++    }
++
++    // Show/hide date inputs based on selected mode.
++    // Disabled inputs are NOT submitted with the form — this prevents
++    // the single/range date_from fields from colliding.
++    function syncDateInputs() {
++        const mode = (document.querySelector('input[name="date_mode"]:checked') || {}).value || 'all';
++        const singleBox = document.getElementById('correctionDateSingle');
++        const rangeBox = document.getElementById('correctionDateRange');
++        const singleInput = document.getElementById('correctionDateFrom');
++        const rangeFrom = document.getElementById('correctionDateRangeFrom');
++        const rangeTo = document.getElementById('correctionDateRangeTo');
++
++        singleBox.classList.toggle('hidden', mode !== 'single');
++        rangeBox.classList.toggle('hidden', mode !== 'range');
++
++        singleInput.disabled = mode !== 'single';
++        rangeFrom.disabled = mode !== 'range';
++        rangeTo.disabled = mode !== 'range';
++    }
++
++    document.querySelectorAll('.correction-date-radio').forEach(function (radio) {
++        radio.addEventListener('change', syncDateInputs);
++    });
++
++    // Init unit selects + date input state on load.
++    document.addEventListener('DOMContentLoaded', function () {
++        updateUnitOptions();
++        syncDateInputs();
++    });
++</script>
++
++@endsection
+diff --git a/routes/web.php b/routes/web.php
+index f502b7a..5a81cc1 100644
+--- a/routes/web.php
++++ b/routes/web.php
+@@ -11,6 +11,7 @@
+ use App\Http\Controllers\EquipmentInspectionController;
+ use App\Http\Controllers\EquipmentInspectionReportController;
+ use App\Http\Controllers\OdxImportController;
++use App\Http\Controllers\UnitCorrectionController;
+ use App\Http\Middleware\RoleMiddleware;
+ 
+ 
+@@ -259,7 +260,41 @@
+     [EquipmentInspectionController::class, 'updateOperatingParameters']
+ )
+     ->middleware(RoleMiddleware::class . ':admin')
+-    ->name('equipment-inspection.operating-parameters.update');        
++    ->name('equipment-inspection.operating-parameters.update');
++
++    /*
++|--------------------------------------------------------------------------
++| UNIT CORRECTION (BULK)
++|--------------------------------------------------------------------------
++*/
++
++Route::get(
++    '/unit-correction',
++    [UnitCorrectionController::class, 'index']
++)
++    ->middleware(RoleMiddleware::class . ':admin')
++    ->name('unit-correction.index');
++
++Route::post(
++    '/unit-correction/preview',
++    [UnitCorrectionController::class, 'preview']
++)
++    ->middleware(RoleMiddleware::class . ':admin')
++    ->name('unit-correction.preview');
++
++Route::post(
++    '/unit-correction/apply',
++    [UnitCorrectionController::class, 'apply']
++)
++    ->middleware(RoleMiddleware::class . ':admin')
++    ->name('unit-correction.apply');
++
++Route::post(
++    '/unit-correction/{logId}/undo',
++    [UnitCorrectionController::class, 'undo']
++)
++    ->middleware(RoleMiddleware::class . ':admin')
++    ->name('unit-correction.undo');
+     /*
+ 
+     

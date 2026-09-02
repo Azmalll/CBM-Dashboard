@@ -232,6 +232,27 @@
                 </span>
             </a>
 
+
+            {{-- UNIT CORRECTION (ADMIN ONLY) --}}
+            @if(auth()->user()?->isAdmin())
+
+                <a
+                    href="{{ route('unit-correction.index') }}"
+                    class="cbm-nav-item flex items-center gap-3
+                           rounded-xl px-2.5 py-3
+                           {{ request()->routeIs('unit-correction.*')
+                                ? 'bg-white text-[#0F2D5C] shadow-sm'
+                                : 'text-blue-100 hover:bg-white/10' }}"
+                    title="Unit Correction"
+                >
+                    <span class="w-9 text-center text-lg shrink-0">🔧</span>
+                    <span class="cbm-sidebar-label text-sm font-semibold">
+                        Unit Correction
+                    </span>
+                </a>
+
+            @endif
+
         </nav>
 
 

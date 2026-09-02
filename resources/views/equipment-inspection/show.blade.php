@@ -346,6 +346,204 @@
 
             </div>
 
+
+            @php
+                /*
+                | Current imbalance:
+                | max deviation from the 3-phase mean, in %.
+                | Only computed when all three phases are present.
+                */
+                $phaseCurrents = collect([
+                    $operatingParameters['current_phase_1'] ?? null,
+                    $operatingParameters['current_phase_2'] ?? null,
+                    $operatingParameters['current_phase_3'] ?? null,
+                ])->filter(function ($value) {
+                    return $value !== null && $value !== '';
+                })->map(fn ($value) => (float) $value);
+
+                $currentImbalance = null;
+
+                if ($phaseCurrents->count() === 3) {
+                    $phaseMean = $phaseCurrents->avg();
+
+                    if ($phaseMean > 0) {
+                        $currentImbalance = $phaseCurrents
+                            ->map(fn ($value) => abs($value - $phaseMean))
+                            ->max() / $phaseMean * 100;
+                    }
+                }
+
+                $imbalanceClass = 'text-gray-400';
+
+                if ($currentImbalance !== null) {
+                    $imbalanceClass = $currentImbalance < 5
+                        ? 'text-green-600'
+                        : ($currentImbalance < 10
+                            ? 'text-yellow-600'
+                            : 'text-red-600');
+                }
+            @endphp
+
+
+            {{-- CURRENT PHASE 1 --}}
+            <div>
+
+                <p class="text-gray-500">
+                    Current Phase 1 (L1)
+                </p>
+
+                <p class="text-xl font-semibold">
+
+                    {{ $operatingParameters['current_phase_1'] ?? '-' }}
+
+                    <span class="text-sm font-normal text-gray-500">
+                        A
+                    </span>
+
+                </p>
+
+            </div>
+
+
+            {{-- CURRENT PHASE 2 --}}
+            <div>
+
+                <p class="text-gray-500">
+                    Current Phase 2 (L2)
+                </p>
+
+                <p class="text-xl font-semibold">
+
+                    {{ $operatingParameters['current_phase_2'] ?? '-' }}
+
+                    <span class="text-sm font-normal text-gray-500">
+                        A
+                    </span>
+
+                </p>
+
+            </div>
+
+
+            {{-- CURRENT PHASE 3 --}}
+            <div>
+
+                <p class="text-gray-500">
+                    Current Phase 3 (L3)
+                </p>
+
+                <p class="text-xl font-semibold">
+
+                    {{ $operatingParameters['current_phase_3'] ?? '-' }}
+
+                    <span class="text-sm font-normal text-gray-500">
+                        A
+                    </span>
+
+                </p>
+
+            </div>
+
+
+            {{-- CURRENT IMBALANCE --}}
+            <div>
+
+                <p class="text-gray-500">
+                    Current Imbalance
+                </p>
+
+                <p class="text-xl font-semibold {{ $imbalanceClass }}">
+
+                    {{ $currentImbalance !== null ? number_format($currentImbalance, 1) : '-' }}
+
+                    <span class="text-sm font-normal text-gray-500">
+                        %
+                    </span>
+
+                </p>
+
+            </div>
+
+
+            {{-- BENTLEY MOTOR X --}}
+            <div>
+
+                <p class="text-gray-500">
+                    Bentley Motor X
+                </p>
+
+                <p class="text-xl font-semibold">
+
+                    {{ $operatingParameters['bentley_motor_x'] ?? '-' }}
+
+                    <span class="text-sm font-normal text-gray-500">
+                        µm p-p
+                    </span>
+
+                </p>
+
+            </div>
+
+
+            {{-- BENTLEY MOTOR Y --}}
+            <div>
+
+                <p class="text-gray-500">
+                    Bentley Motor Y
+                </p>
+
+                <p class="text-xl font-semibold">
+
+                    {{ $operatingParameters['bentley_motor_y'] ?? '-' }}
+
+                    <span class="text-sm font-normal text-gray-500">
+                        µm p-p
+                    </span>
+
+                </p>
+
+            </div>
+
+
+            {{-- BENTLEY PUMP X --}}
+            <div>
+
+                <p class="text-gray-500">
+                    Bentley Pump X
+                </p>
+
+                <p class="text-xl font-semibold">
+
+                    {{ $operatingParameters['bentley_pump_x'] ?? '-' }}
+
+                    <span class="text-sm font-normal text-gray-500">
+                        µm p-p
+                    </span>
+
+                </p>
+
+            </div>
+
+
+            {{-- BENTLEY PUMP Y --}}
+            <div>
+
+                <p class="text-gray-500">
+                    Bentley Pump Y
+                </p>
+
+                <p class="text-xl font-semibold">
+
+                    {{ $operatingParameters['bentley_pump_y'] ?? '-' }}
+
+                    <span class="text-sm font-normal text-gray-500">
+                        µm p-p
+                    </span>
+
+                </p>
+
+            </div>
+
         </div>
 
     </div>
