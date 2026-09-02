@@ -3886,13 +3886,9 @@ function openInspectionDetail(historyIndex) {
             ) / mean * 100;
         })();
 
-        const imbalanceCls = currentImbalanceOp === null
-            ? 'text-gray-400'
-            : (currentImbalanceOp < 5
-                ? 'text-green-600'
-                : (currentImbalanceOp < 10
-                    ? 'text-yellow-600'
-                    : 'text-red-600'));
+        // imbalanceCls is computed inline in the render below (blade template
+        // literal interpolations of nested variables were producing empty
+        // strings in production — moving the logic into JS keeps it simple).
 
     const parameterValue = (key, unit) => {
         const value = operatingParameters[key];
@@ -4080,9 +4076,17 @@ function openInspectionDetail(historyIndex) {
                         Current Imbalance
                     </p>
                     <p class="mt-1">
-                        ${currentImbalanceOp !== null
-                            ? `<span class="text-xl font-semibold ${imbalanceCls}">${currentImbalanceOp.toFixed(1)}</span><span class="text-sm font-normal text-gray-500"> %</span>`
-                            : `<span class="text-gray-400">-</span><span class="text-sm font-normal text-gray-400"> %</span>`}
+                        ${(() => {
+                            if (currentImbalanceOp === null) {
+                                return '<span class="text-gray-400">-</span><span class="text-sm font-normal text-gray-400"> %</span>';
+                            }
+                            const cls = currentImbalanceOp < 5
+                                ? 'text-green-600'
+                                : (currentImbalanceOp < 10
+                                    ? 'text-yellow-600'
+                                    : 'text-red-600');
+                            return '<span class="text-xl font-semibold ' + cls + '">' + currentImbalanceOp.toFixed(1) + '</span><span class="text-sm font-normal text-gray-500"> %</span>';
+                        })()}
                     </p>
                 </div>
 
