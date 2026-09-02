@@ -3952,10 +3952,11 @@ function openInspectionDetail(historyIndex) {
                         : ''
                 }
 
-                ${index === healthyIndex ? `
+                ${isHealthyBaseline ? `
                 <button
                     type="button"
-                    onclick="openComparisonFromBaseline(${index})"
+                                        onclick="openComparisonFromBaseline(${historyIndex})"
+
                     class="inline-flex items-center justify-center
                            px-4 py-2 rounded-lg
                            bg-green-600 text-white
